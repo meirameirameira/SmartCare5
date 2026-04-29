@@ -31,3 +31,11 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Node
+node_modules/
+
+# Project-specific
+.claude/
+create_presentation.js
+SmartCare_AI_Logistics_Pitch.pptx
