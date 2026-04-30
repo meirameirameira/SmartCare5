@@ -126,7 +126,7 @@ fun CreditsScreen(onBack: () -> Unit) {
             // Institution section
             CreditsSection(title = "Instituicao") {
                 InfoRow("🎓", "FIAP", "Faculdade de Informatica e Administracao Paulista")
-                InfoRow("📚", "Curso", "Engenharia de Software")
+                InfoRow("📚", "Curso", "Sistemas da Informação")
                 InfoRow("🏆", "Parceiro", "Enterprise Challenge - Leroy Merlin")
             }
 
