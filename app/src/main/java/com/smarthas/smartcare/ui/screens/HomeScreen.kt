@@ -31,7 +31,7 @@ fun HomeScreen(
 
         // ── Top Bar ──────────────────────────────────────────────────────────
         SmartTopBar(
-            greeting          = "Bom dia,",
+            greeting          = state.greeting,
             title             = state.patient?.name ?: "Carregando...",
             trailingIcon      = "👤",
             badge             = state.patient?.notificationCount ?: 0,

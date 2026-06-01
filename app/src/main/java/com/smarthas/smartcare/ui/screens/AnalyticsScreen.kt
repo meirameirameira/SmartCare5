@@ -41,7 +41,7 @@ fun AnalyticsScreen(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(7 to "7 dias", 30 to "30 dias", 90 to "90 dias").forEach { (days, label) ->
+                listOf(7 to "7 dias", 14 to "14 dias", 30 to "30 dias").forEach { (days, label) ->
                     PeriodChip(
                         label    = label,
                         selected = state.selectedPeriodDays == days,

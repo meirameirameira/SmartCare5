@@ -19,6 +19,7 @@ data class HomeUiState(
     val vitals: VitalReading? = null,
     val healthScore: HealthScore? = null,
     val alerts: List<HealthAlert> = emptyList(),
+    val greeting: String = "Bom dia,",
     val loading: Boolean = true
 )
 
@@ -106,10 +107,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ── Loaders ──────────────────────────────────────────────────────────────
 
     private fun loadHome() = viewModelScope.launch {
-        val patient = repo.getPatient()
-        val score   = repo.getHealthScore()
-        val alerts  = repo.getAlerts()
-        _homeState.update { it.copy(patient = patient, healthScore = score, alerts = alerts, loading = false) }
+        val patient  = repo.getPatient()
+        val score    = repo.getHealthScore()
+        val alerts   = repo.getAlerts()
+        val greeting = when (LocalTime.now().hour) {
+            in 5..11  -> "Bom dia,"
+            in 12..17 -> "Boa tarde,"
+            else      -> "Boa noite,"
+        }
+        _homeState.update { it.copy(patient = patient, healthScore = score, alerts = alerts, greeting = greeting, loading = false) }
     }
 
     private fun startVitalStream() = viewModelScope.launch {

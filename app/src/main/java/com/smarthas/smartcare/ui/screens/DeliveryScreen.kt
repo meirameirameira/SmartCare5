@@ -321,17 +321,26 @@ private fun HomeCareCard(visit: HomeCareVisit) {
                 .padding(10.dp)
         ) {
             Column {
-                Text("IA prevê tempo de atendimento",
-                     style = MaterialTheme.typography.labelSmall,
-                     color = PrimaryGreenDark,
-                     fontWeight = FontWeight.Medium)
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment     = Alignment.CenterVertically
+                ) {
+                    Text("IA prevê tempo de atendimento",
+                         style = MaterialTheme.typography.labelSmall,
+                         color = PrimaryGreenDark,
+                         fontWeight = FontWeight.Medium)
+                    Text("${visit.confidencePercent}% confiança",
+                         style = MaterialTheme.typography.labelSmall,
+                         color = PrimaryGreenDark.copy(alpha = 0.7f))
+                }
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text("${visit.estimatedMinutes} min",
                          style = MaterialTheme.typography.headlineSmall,
                          color = MaterialTheme.colorScheme.onSurface)
                     Spacer(Modifier.width(8.dp))
-                    Text("± 5 min (${visit.similarCasesCount} visitas similares)",
+                    Text("± 5 min · ${visit.similarCasesCount} visitas similares",
                          style = MaterialTheme.typography.bodySmall,
                          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
                 }

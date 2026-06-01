@@ -281,65 +281,73 @@ class SmartCareRepository {
 
     suspend fun getInitialMessages(): List<ChatMessage> {
         delay(100)
+        val time = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
         return listOf(
             ChatMessage(
                 id        = "MSG-001",
                 role      = MessageRole.AI,
-                content   = "Olá, Carlos! Sou sua IA de saúde. Posso analisar seus dados do wearable, responder dúvidas clínicas e ajudar com sua rotina de cuidados.",
-                timeLabel = "09:41"
+                content   = "Olá, Carlos! Sou sua IA de saúde SmartCare. Posso analisar seus dados do wearable, responder dúvidas clínicas e ajudar com sua rotina de cuidados. Disclaimer: Não substituo avaliação médica — em emergências, ligue 192 (SAMU).",
+                timeLabel = time
             ),
             ChatMessage(
                 id        = "MSG-002",
                 role      = MessageRole.AI,
-                content   = "Com base nos seus dados de hoje, sua glicemia (104 mg/dL) está dentro do esperado, mas houve leve tendência de alta nos últimos 3 dias. Quer que eu notifique a Dra. Paula Mota?",
-                timeLabel = "09:41"
+                content   = "Resumo de hoje:\n• Score de saúde: 84/100 — Estável\n• FC: 72 bpm · SpO₂: 98% · Glicemia: 104 mg/dL\n• Alerta: glicemia com leve tendência de alta nos últimos 3 dias\n• Entrega de medicamentos a caminho (~12 min)\n\nComo posso ajudar?",
+                timeLabel = time
             )
         )
     }
 
     suspend fun getQuickPrompts(): List<QuickPrompt> {
         return listOf(
-            QuickPrompt("Como está minha glicemia?",     "Como está minha glicemia esta semana?",              ChipColor.GREEN),
-            QuickPrompt("Rastrear entrega",              "Onde está minha entrega de medicamentos?",           ChipColor.BLUE),
-            QuickPrompt("Remarcar consulta",             "Preciso remarcar minha consulta",                    ChipColor.AMBER),
-            QuickPrompt("Score de risco hoje",           "Qual é meu score de risco de saúde hoje?",           ChipColor.GREEN),
-            QuickPrompt("Pressão arterial",              "Como está minha pressão arterial esta semana?",      ChipColor.BLUE)
+            QuickPrompt("Glicemia hoje",     "Como está minha glicemia esta semana?",              ChipColor.GREEN),
+            QuickPrompt("Rastrear entrega",  "Onde está minha entrega de medicamentos?",           ChipColor.BLUE),
+            QuickPrompt("Fila de espera",    "Qual o tempo de espera na fila de enfermagem?",      ChipColor.AMBER),
+            QuickPrompt("Score de saúde",    "Qual é meu score de risco de saúde hoje?",           ChipColor.GREEN),
+            QuickPrompt("Meus medicamentos", "Quais medicamentos devo tomar hoje?",                ChipColor.AMBER),
+            QuickPrompt("Pressão arterial",  "Como está minha pressão arterial esta semana?",      ChipColor.BLUE)
         )
     }
 
-    // Simulates backend IA Engine response (RN01: score >= 70 triggers alert)
+    // Simulates AI Engine response (RN01: score >= 70 triggers alert; LGPD: no PII sent externally)
     suspend fun sendChatMessage(message: String): String {
         delay(900)
+        val msg = message.lowercase()
         return when {
-            message.contains("glicemia", ignoreCase = true) ->
-                "Sua glicemia média nos últimos 7 dias foi de 108 mg/dL, com pico de 127 mg/dL " +
-                "na quinta-feira após o jantar. Está 8% acima da semana anterior. " +
-                "Recomendo verificar com a Dra. Paula na consulta de 08/abr."
+            // Emergency detection — always redirect first (never generate medical advice for crises)
+            msg.contains("emergência") || msg.contains("emergencia") ||
+            msg.contains("desmaiei") || msg.contains("infarto") || msg.contains("avc") ->
+                "ATENÇÃO — Situação de emergência detectada.\n\nLigue imediatamente:\n• SAMU: 192\n• Bombeiros: 193\n• CVV (crise emocional): 188\n\nNão aguarde resposta do app em emergências. Este assistente não substitui atendimento médico urgente."
 
-            message.contains("entrega", ignoreCase = true) || message.contains("medicamento", ignoreCase = true) ->
-                "Sua encomenda #MED-2025-04712 está em rota! O entregador está a 3,2 km de você. " +
-                "ETA estimado pela IA: 12h15–12h35. Você receberá uma notificação 10 min antes da chegada."
+            msg.contains("glicemia") || msg.contains("glucose") || msg.contains("açúcar") ->
+                "Sua glicemia média nos últimos 7 dias foi de 108 mg/dL, com pico de 127 mg/dL na quinta-feira após o jantar. Está 8% acima da semana anterior.\n\nContexto clínico: para diabéticos tipo 2, a meta é < 130 mg/dL em jejum.\n\nRecomendo discutir com a Dra. Paula Mota na consulta de 08/abr. Quer que eu prepare um resumo do histórico para a consulta?"
 
-            message.contains("consulta", ignoreCase = true) || message.contains("remarcar", ignoreCase = true) ->
-                "Entendido! Qual consulta você deseja remarcar?\n" +
-                "• Dr. Rafael Alves — Cardiologia — Hoje 14h30\n" +
-                "• Dra. Paula Mota — Endocrinologia — 08/abr 10h00\n\n" +
-                "Responda com o nome do médico para continuar."
+            msg.contains("entrega") || msg.contains("remédio") || msg.contains("medicamento") && msg.contains("chegou") ->
+                "Sua encomenda #MED-2025-04712 (Medicamentos crônicos) está em rota!\n\n• Distância: 3,2 km de você\n• ETA (IA): 12h15 — 12h35\n• Farmácia: Sempre Bem\n\nVocê receberá uma notificação push 10 minutos antes da chegada. Deseja confirmar que estará em casa?"
 
-            message.contains("score", ignoreCase = true) || message.contains("risco", ignoreCase = true) ->
-                "Seu score de saúde hoje é 84/100 — classificação ÓTIMO. " +
-                "Frequência cardíaca e SpO₂ estão dentro da faixa ideal. " +
-                "Atenção apenas à glicemia, que está levemente elevada."
+            msg.contains("score") || msg.contains("risco") || msg.contains("saúde") && msg.contains("hoje") ->
+                "Seu score de saúde hoje é 84/100 — Estável.\n\nDetalhamento:\n• FC: 72 bpm — Normal\n• SpO₂: 98% — Excelente\n• Glicemia: 104 mg/dL — Atenção (tendência de alta)\n• Adesão medicamentos: 86% (+12% vs semana anterior)\n\nPonto de atenção: glicemia em leve alta há 3 dias consecutivos."
 
-            message.contains("pressão", ignoreCase = true) ->
-                "Sua pressão arterial média esta semana foi 128/82 mmHg. " +
-                "Está dentro do limite aceitável para seu perfil, mas próxima do limiar de hipertensão estágio 1. " +
-                "Continue com a Losartana 50mg conforme prescrito."
+            msg.contains("pressão") || msg.contains("hipertensão") ->
+                "Sua pressão arterial média esta semana foi 128/82 mmHg.\n\nClassificação: Pré-hipertensão (limiar: 130/80 mmHg pela diretriz 2024).\n\nRecomendação: mantenha a Losartana 50mg conforme prescrito e reduza o sódio na dieta. Próxima aferição recomendada: em 3 dias."
+
+            msg.contains("spo2") || msg.contains("oxigênio") || msg.contains("saturação") ->
+                "Sua SpO₂ média hoje está em 98% — excelente! A faixa normal é 95–100%.\n\nSe a saturação cair abaixo de 94%, o sistema enviará alerta automático para você e seu médico (RN01 — resposta em até 2 minutos)."
+
+            msg.contains("frequência cardíaca") || msg.contains("batimento") || msg.contains("fc ") || msg.contains("coração") ->
+                "Sua frequência cardíaca atual é de 72 bpm — dentro da faixa normal (60–100 bpm).\n\nTendência da semana: 3 bpm abaixo da semana anterior, o que é positivo. Seus dados cardíacos são monitorados continuamente pelo wearable."
+
+            msg.contains("consulta") || msg.contains("remarcar") || msg.contains("agendamento") ->
+                "Suas próximas consultas:\n• Dr. Rafael Alves (Cardiologia) — Hoje 14h30 — Médico disponível\n• Dra. Paula Mota (Endocrinologia) — 08/abr 10h00\n• Dr. João Lima (Clínica Geral) — 15/abr 16h30\n\nQual consulta deseja remarcar? Responda com o nome do médico."
+
+            msg.contains("medicamento") || msg.contains("remédio") || msg.contains("dose") ->
+                "Seus medicamentos de hoje:\n• Metformina 500mg — 08h: tomado | 12h: pendente\n• Losartana 50mg — 08h: tomado\n• Insulina NPH 10UI — 22h: pendente\n• AAS 100mg — 08h: tomado\n\nAdesão hoje: 75%. Lembrete configurado para 12h."
+
+            msg.contains("fila") || msg.contains("espera") || msg.contains("enfermagem") ->
+                "Fila do plantão de enfermagem online:\n• Posição atual: 3 pessoas na fila\n• Tempo estimado pela IA: ~8 minutos\n\nA estimativa é atualizada em tempo real com base no volume de atendimentos e horário do dia. Quer entrar na fila agora?"
 
             else ->
-                "Entendido! Estou analisando seus dados de saúde — wearable, histórico clínico e prontuário — " +
-                "para responder com precisão. Score atual: 84/100. Todos os sinais vitais estão monitorados. " +
-                "Há algo específico que você gostaria de saber?"
+                "Entendido! Estou analisando seus dados — wearable, histórico clínico e prontuário — para responder com precisão.\n\nScore atual: 84/100 | FC: 72 bpm | SpO₂: 98% | Glicemia: 104 mg/dL\n\nPode perguntar sobre: glicemia, pressão, SpO₂, frequência cardíaca, medicamentos, entregas, consultas ou fila de enfermagem."
         }
     }
 }
