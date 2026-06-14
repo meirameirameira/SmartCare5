@@ -1,35 +1,109 @@
+import 'dart:convert';
 import 'dart:math';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
-/// Serviço de IA do SmartHAS.
-/// Em produção: conecta ao backend FastAPI com modelos de ML e LLM.
-/// Em demo: respostas contextuais pré-definidas com lógica de matching.
 class AiService {
+  static const _apiKey = String.fromEnvironment(
+    'GEMINI_API_KEY',
+    defaultValue: '',
+  );
+
+  static const _endpoint =
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+  static const _systemPrompt = '''
+Você é o Assistente SmartHAS, especialista em saúde do paciente João Silva, 68 anos, com diabetes tipo 2 e hipertensão leve.
+
+Dados vitais atuais do paciente:
+- Frequência cardíaca: 72 bpm (normal)
+- SpO₂: 98.5% (normal)
+- Glicemia: 104 mg/dL (levemente acima — ideal em jejum: 70–100)
+- Pressão arterial: 120/80 mmHg (ótimo controle)
+- Temperatura: 36.5°C
+- Score de saúde: 84/100
+
+Medicamentos em uso:
+- Metformina 500mg (08:00 e 14:00 — com refeição)
+- Losartana 50mg (20:00 — com jantar)
+
+Diretrizes:
+- Responda SEMPRE em português do Brasil
+- Seja empático, claro e objetivo
+- Dê respostas personalizadas usando os dados do paciente
+- Para situações de emergência, oriente a ligar 192 (SAMU)
+- Não substitua o médico — reforce consultas quando necessário
+- Respostas curtas (máx 4 linhas) a menos que solicitado mais detalhes
+''';
+
   static final _rng = Random();
 
-  static const _responses = <String, String>{
-    'glicemia': 'Com base nos seus dados recentes, sua glicemia média nas últimas 24h foi de 108 mg/dL — levemente acima do ideal (70–100 mg/dL em jejum). Recomendo evitar carboidratos simples à noite.',
-    'medicamento': 'Hoje você deve tomar:\n• 08:00 — Metformina 500mg (com café)\n• 14:00 — Metformina 500mg (com almoço)\n• 20:00 — Losartana 50mg (com jantar)\n\nSua aderência está em 96% esta semana. 👏',
-    'exercício': 'Para sua condição (diabetes tipo 2 + hipertensão leve), recomendo:\n• Caminhada leve 30 min após refeições\n• Natação ou hidroginástica 3x/semana\n• Evite exercícios de alta intensidade sem supervisão médica.',
-    'sono': 'O sono inadequado pode elevar a pressão arterial em até 15%. Sua meta: 7–8h por noite. Dica: desligue telas 1h antes de dormir e mantenha horários regulares.',
-    'pressão': 'Sua última medição: 120/80 mmHg — excelente controle! Lembre-se de tomar Losartana no horário certo e evitar excesso de sódio.',
-    'coração': 'Sua frequência cardíaca de repouso está em 72 bpm — dentro da faixa normal (60–100 bpm). A tendência das últimas 2 semanas é estável.',
-  };
-
   static Future<String> ask(String question) async {
-    // Simula latência de IA
-    await Future.delayed(Duration(milliseconds: 800 + _rng.nextInt(600)));
+    if (_apiKey.isEmpty) {
+      debugPrint('[AiService] GEMINI_API_KEY não configurada — usando fallback');
+      return _fallback(question);
+    }
 
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_endpoint?key=$_apiKey'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'system_instruction': {
+                'parts': [
+                  {'text': _systemPrompt}
+                ]
+              },
+              'contents': [
+                {
+                  'role': 'user',
+                  'parts': [
+                    {'text': question}
+                  ]
+                }
+              ],
+              'generationConfig': {
+                'temperature': 0.7,
+                'maxOutputTokens': 512,
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final text = data['candidates']?[0]?['content']?['parts']?[0]?['text']
+            as String?;
+        if (text != null && text.isNotEmpty) return text.trim();
+      }
+
+      debugPrint('[AiService] Gemini retornou ${response.statusCode}: ${response.body}');
+      return _fallback(question);
+    } catch (e) {
+      debugPrint('[AiService] Erro na chamada Gemini: $e');
+      return _fallback(question);
+    }
+  }
+
+  static String _fallback(String question) {
     final q = question.toLowerCase();
+    const responses = <String, String>{
+      'glicemia': 'Sua glicemia atual é 104 mg/dL — levemente acima do ideal em jejum (70–100). Evite carboidratos simples à noite e consulte seu médico para ajuste.',
+      'medicamento': 'Hoje você toma:\n• 08:00 — Metformina 500mg\n• 14:00 — Metformina 500mg\n• 20:00 — Losartana 50mg\n\nSua aderência está ótima esta semana!',
+      'exercício': 'Para sua condição recomendo:\n• Caminhada 30 min após refeições\n• Natação 3x/semana\n• Evite alta intensidade sem supervisão médica.',
+      'pressão': 'Sua pressão está excelente: 120/80 mmHg. Continue com a Losartana no horário e reduza o sódio na alimentação.',
+      'coração': 'FC de repouso: 72 bpm — normal. Tendência estável nas últimas 2 semanas.',
+      'sono': 'Sono inadequado eleva a pressão em até 15%. Meta: 7–8h por noite. Desligue telas 1h antes de dormir.',
+    };
 
-    for (final entry in _responses.entries) {
+    for (final entry in responses.entries) {
       if (q.contains(entry.key)) return entry.value;
     }
 
-    // Resposta genérica contextual
     final generic = [
-      'Com base no seu perfil de saúde, posso te ajudar com informações sobre seus sinais vitais, medicamentos ou hábitos. Pode perguntar!',
-      'Analisando seus dados... Para uma resposta mais precisa sobre "$question", recomendo consultar seu médico na próxima consulta. Posso ajudar com algo mais específico?',
-      'Boa pergunta! No SmartHAS monitoramos continuamente seus dados para fornecer insights personalizados. Tente perguntar sobre glicemia, pressão, medicamentos ou exercícios.',
+      'Posso te ajudar com informações sobre glicemia, pressão, medicamentos, exercícios ou sono. O que deseja saber?',
+      'Com base nos seus dados de saúde, estou aqui para responder suas dúvidas. Tente ser mais específico sobre o que precisa.',
     ];
     return generic[_rng.nextInt(generic.length)];
   }
