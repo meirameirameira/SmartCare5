@@ -1,7 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Simula envio de notificação push via Firebase Cloud Messaging.
-/// Em produção: o backend SmartHAS envia mensagens FCM usando o Admin SDK.
+/// Em produção: o backend SmartCare 5.0 envia mensagens FCM usando o Admin SDK.
 class FcmService {
   static final _localNotifications = FlutterLocalNotificationsPlugin();
 
@@ -28,9 +28,9 @@ class FcmService {
       body,
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'smarthas_alerts',
-          'Alertas SmartHAS',
-          channelDescription: 'Notificações de saúde e logística do SmartHAS',
+          'smartcare_alerts',
+          'Alertas SmartCare 5.0',
+          channelDescription: 'Notificações de saúde e logística do SmartCare 5.0',
           importance: Importance.max,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',

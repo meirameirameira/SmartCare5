@@ -17,7 +17,7 @@ class MapProvider extends ChangeNotifier {
   }
 
   Future<void> _init() async {
-    // Dispositivos SmartHAS mockados em São Paulo
+    // Dispositivos SmartCare 5.0 mockados em São Paulo
     devices = const [
       SmartDevice(
         id: 's1', name: 'Sensor Cardíaco — Casa', type: DeviceType.sensor,

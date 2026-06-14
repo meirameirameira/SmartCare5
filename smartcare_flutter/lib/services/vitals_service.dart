@@ -4,12 +4,12 @@ import 'package:http/http.dart' as http;
 import '../models/models.dart';
 
 /// Integração com RandomUser / JSONPlaceholder para simular leitura de wearable
-/// Em produção: substituir por endpoint MQTT/REST do gateway de dispositivos SmartHAS
+/// Em produção: substituir por endpoint MQTT/REST do gateway de dispositivos SmartCare 5.0
 class VitalsService {
   static final _rng = Random();
 
   // Simula leitura de wearable via API pública (JSONPlaceholder como proxy de dados)
-  // Em produção seria um endpoint HTTPS do gateway IoT SmartHAS
+  // Em produção seria um endpoint HTTPS do gateway IoT SmartCare 5.0
   static Future<VitalReading?> fetchSimulatedVitals() async {
     try {
       // Usamos a NumbersAPI para obter um seed numérico e gerar vitals variados

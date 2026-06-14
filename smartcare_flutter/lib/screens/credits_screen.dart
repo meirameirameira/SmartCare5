@@ -38,7 +38,7 @@ class CreditsScreen extends StatelessWidget {
                         color: Colors.white,
                         fontSize: 26,
                         fontWeight: FontWeight.w700)),
-                const Text('Smart HAS — Enterprise Challenge 2026',
+                const Text('SmartCare 5.0 — Enterprise Challenge 2026',
                     style: TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 6),
                 Container(

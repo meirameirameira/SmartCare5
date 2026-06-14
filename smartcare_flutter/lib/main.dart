@@ -56,8 +56,8 @@ Future<void> _setupFCMListeners() async {
         notification.body,
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'smarthas_channel',
-            'SmartHAS Alertas',
+            'smartcare_channel',
+            'SmartCare 5.0 Alertas',
             channelDescription: 'Alertas de saúde e logística',
             importance: Importance.max,
             priority: Priority.high,

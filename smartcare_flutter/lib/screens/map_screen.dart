@@ -21,7 +21,7 @@ class _MapScreenState extends State<MapScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mapa SmartHAS'),
+        title: const Text('Mapa SmartCare'),
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),

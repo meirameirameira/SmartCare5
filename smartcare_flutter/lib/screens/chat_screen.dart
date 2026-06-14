@@ -48,7 +48,7 @@ class _ChatScreenState extends State<ChatScreen> {
         title: const Row(
           children: [
             Text('🤖 ', style: TextStyle(fontSize: 18)),
-            Text('Assistente SmartHAS'),
+            Text('Assistente SmartCare'),
           ],
         ),
       ),

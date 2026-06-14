@@ -48,7 +48,7 @@ class _TopBar extends StatelessWidget {
               children: [
                 Text(p.greeting,
                     style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                Text(p.patient?.name ?? 'SmartHAS',
+                Text(p.patient?.name ?? 'SmartCare',
                     style: const TextStyle(color: Colors.white,
                         fontSize: 18, fontWeight: FontWeight.w600)),
               ],
@@ -148,7 +148,7 @@ class _Body extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           Row(children: [
-            QuickActionButton(icon: '🗺️', label: 'Mapa SmartHAS',
+            QuickActionButton(icon: '🗺️', label: 'Mapa SmartCare',
                 sub: 'Dispositivos', onTap: () => context.go('/map')),
             const SizedBox(width: 8),
             // Botão de push de teste

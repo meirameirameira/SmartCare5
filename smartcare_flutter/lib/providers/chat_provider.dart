@@ -19,7 +19,7 @@ class ChatProvider extends ChangeNotifier {
       ChatMessage(
         id: 'm0',
         role: MessageRole.ai,
-        content: 'Olá! Sou o assistente SmartHAS. Posso analisar seus dados de saúde e responder dúvidas. Como posso ajudar?',
+        content: 'Olá! Sou o assistente SmartCare 5.0. Posso analisar seus dados de saúde e responder dúvidas. Como posso ajudar?',
         timeLabel: _now(),
       ),
     ];

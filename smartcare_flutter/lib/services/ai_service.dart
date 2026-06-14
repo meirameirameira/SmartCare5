@@ -13,7 +13,7 @@ class AiService {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
   static const _systemPrompt = '''
-Você é o Assistente SmartHAS, especialista em saúde do paciente João Silva, 68 anos, com diabetes tipo 2 e hipertensão leve.
+Você é o Assistente SmartCare 5.0, especialista em saúde do paciente João Silva, 68 anos, com diabetes tipo 2 e hipertensão leve.
 
 Dados vitais atuais do paciente:
 - Frequência cardíaca: 72 bpm (normal)
