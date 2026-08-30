@@ -101,44 +101,85 @@ Para habilitar Firebase:
 
 ## Estrutura do projeto
 
+Arquitetura em camadas (domínio puro, dados e apresentação), com inversão de dependência:
+
 ```
 smartcare_flutter/
 ├── lib/
-│   ├── main.dart                 # Entry point e injeção de Providers
-│   ├── screens/                  # Telas da UI
-│   │   ├── home_screen.dart      # Painel de sinais vitais
-│   │   ├── chat_screen.dart      # Assistente SmartCare (IA)
-│   │   ├── map_screen.dart       # Google Maps + dispositivos IoT
-│   │   ├── medications_screen.dart
-│   │   ├── login_screen.dart
-│   │   └── credits_screen.dart
-│   ├── providers/                # Gerenciamento de estado (Provider)
-│   │   ├── home_provider.dart
-│   │   ├── chat_provider.dart
-│   │   └── map_provider.dart
-│   ├── services/                 # Integração com APIs externas
-│   │   ├── ai_service.dart       # Gemini 2.0 Flash + fallback
-│   │   ├── vitals_service.dart   # Sinais vitais simulados
-│   │   └── fcm_service.dart      # Notificações push
-│   └── models/                   # Entidades de dados
+│   ├── main.dart                    # bootstrap de plataforma (Firebase, notificações)
+│   ├── app.dart                     # composição de providers, temas e rotas
+│   ├── core/                        # infraestrutura transversal
+│   │   ├── di/injector.dart         # Composition Root — decide as implementações
+│   │   ├── error/failures.dart      # AppFailure selada (rede, timeout, servidor, cache…)
+│   │   ├── result/result.dart       # Result<T> = Ok | Err
+│   │   ├── state/view_state.dart    # ViewState<T> = Idle | Loading | Ready | Failed
+│   │   ├── network/api_client.dart  # HTTP único com retry e backoff exponencial
+│   │   ├── storage/local_cache.dart # cache offline-first (SharedPreferences / memória)
+│   │   ├── notifications/           # canal único de notificações locais e FCM
+│   │   ├── theme/app_theme.dart     # temas claro e escuro + cores semânticas de saúde
+│   │   └── router/app_router.dart   # rotas nomeadas (go_router)
+│   ├── domain/                      # regras de negócio, sem dependência de Flutter
+│   │   ├── entities/
+│   │   ├── repositories/            # contratos usados pela UI
+│   │   └── services/
+│   │       ├── health_score_engine.dart  # score 0–100 por faixas clínicas
+│   │       └── alert_engine.dart         # alertas dinâmicos + agenda de medicação
+│   ├── data/
+│   │   ├── datasources/remote/      # Open-Meteo, gateway IoT/wearable, Gemini
+│   │   ├── datasources/local/       # base de conhecimento offline, catálogo demo
+│   │   └── repositories/            # implementações dos contratos de domínio
+│   └── presentation/
+│       ├── providers/               # estado de tela (Provider/ChangeNotifier)
+│       ├── screens/                 # home, delivery, consulta, analytics, chat, mapa,
+│       │                            # preferências, créditos
+│       └── widgets/
+├── test/                            # 45 testes: domínio, dados, providers e widgets
 ├── android/
-│   ├── local.properties          # ⚠️ NÃO commitado — criar manualmente
+│   ├── local.properties             # ⚠️ NÃO commitado — criar manualmente
 │   └── app/
-│       ├── build.gradle          # Injeção da Maps API key
-│       └── google-services.json  # ⚠️ NÃO commitado — baixar do Firebase
+│       ├── build.gradle             # injeção da Maps API key
+│       └── google-services.json     # ⚠️ NÃO commitado — baixar do Firebase
 └── web/
-    └── index.html                # Maps JS API (usa YOUR_MAPS_API_KEY no repo)
+    └── index.html                   # Maps JS API
 ```
+
+### Variáveis de compilação (`--dart-define`)
+
+| Variável | Sem ela | Com ela |
+|---|---|---|
+| `GEMINI_API_KEY` | Assistente usa a base de conhecimento local, já contextualizada com os vitais atuais | Respostas geradas pelo Gemini 2.0 Flash |
+| `SMARTCARE_API_URL` | Sinais vitais vêm do simulador de wearable | Leituras vêm do gateway IoT REST |
+| `GOOGLE_MAPS_API_KEY` | Mapa carrega com aviso `InvalidKey` | Mapa completo |
 
 ---
 
 ## Funcionalidades
 
-- **Painel de Vitais** — FC, SpO₂, Glicemia, PA e Temperatura atualizados em tempo real com score de saúde
-- **Assistente IA** — Chat integrado ao Google Gemini 2.0 Flash com contexto dos dados do paciente
-- **Mapa** — Google Maps com marcadores dos dispositivos IoT do paciente
-- **Medicamentos** — Agenda de medicamentos com horários e aderência semanal
-- **Notificações Push** — Alertas de saúde via Firebase Cloud Messaging
+- **Dashboard de vitais** — FC, SpO₂, glicemia, PA e temperatura atualizados automaticamente, com chips
+  coloridos pela classificação clínica de cada sinal.
+- **Score de saúde calculado** — motor de regras converte as leituras em um score 0–100, com tendência e
+  indicação de qual métrica mais reduz a pontuação.
+- **Alertas dinâmicos** — gerados a partir dos sinais fora da faixa e da agenda de medicação, ordenados por
+  severidade e enviáveis como notificação.
+- **Modo offline-first** — sem rede, o app exibe a última leitura salva, informa o horário e oferece
+  atualizar; erros aparecem com ação de nova tentativa.
+- **Assistente SmartCare** — Gemini 2.0 Flash quando configurado, com fallback local; em ambos os casos a
+  resposta usa os valores medidos no instante da pergunta. Histórico persistido entre sessões.
+- **Analytics** — séries de 7/14/30 dias terminando na medição real mais recente, com insights derivados do
+  score.
+- **Mapa IoT** — dispositivos do paciente, farmácia e hospitais de referência sobre o Google Maps.
+- **Entregas & Home Care** — rastreio do pedido de medicamentos e próxima visita domiciliar.
+- **Preferências** — tema claro/escuro/automático, escala de texto de 90% a 130% (acessibilidade) e
+  controle de notificações, tudo persistido no dispositivo.
+
+---
+
+## Qualidade
+
+```bash
+flutter analyze   # No issues found!
+flutter test      # All tests passed! (45)
+```
 
 ---
 
@@ -148,5 +189,5 @@ smartcare_flutter/
 |---|---|
 | `GEMINI_API_KEY` ausente ou com quota zerada | Assistente usa fallback por palavras-chave |
 | `GOOGLE_MAPS_API_KEY` ausente | Mapa carrega com aviso `InvalidKey` |
-| NumbersAPI bloqueada por CORS (Flutter Web) | Vitais usam geração local aleatória |
+| `SMARTCARE_API_URL` ausente | Vitais vêm do simulador determinístico de wearable |
 | Firebase não configurado | App inicializa normalmente sem push |

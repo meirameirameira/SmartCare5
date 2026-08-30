@@ -1,93 +1,54 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
 
-import 'core/theme.dart';
-import 'core/router.dart';
-import 'providers/home_provider.dart';
-import 'providers/delivery_provider.dart';
-import 'providers/consulta_provider.dart';
-import 'providers/analytics_provider.dart';
-import 'providers/chat_provider.dart';
-import 'providers/map_provider.dart';
+import 'app.dart';
+import 'core/di/injector.dart';
+import 'core/notifications/notification_service.dart';
 
-final FlutterLocalNotificationsPlugin localNotifications =
-    FlutterLocalNotificationsPlugin();
-
+/// Ponto de entrada.
+///
+/// Responsabilidade única: preparar plataforma (Firebase, notificações),
+/// montar o grafo de dependências e subir a UI. Toda a lógica de negócio vive
+/// em `domain/` e `data/`.
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackground(RemoteMessage message) async {
+Future<void> _onBackgroundMessage(RemoteMessage message) async {
   await Firebase.initializeApp();
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase init (simulado — em produção usar google-services.json real)
+  await NotificationService.instance.init();
+  await _setupFirebaseMessaging();
+
+  final injector = await Injector.bootstrap();
+
+  runApp(SmartCareApp(injector: injector));
+}
+
+/// Configura o FCM quando o projeto Firebase está disponível.
+///
+/// Sem `google-services.json` o app continua funcionando em modo demo com
+/// notificações locais — antes essa falha era engolida sem qualquer registro.
+Future<void> _setupFirebaseMessaging() async {
   try {
     await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackground);
-    await _setupLocalNotifications();
-    await _setupFCMListeners();
-  } catch (_) {
-    // Firebase não configurado — app roda sem push real em modo demo
-  }
+    FirebaseMessaging.onBackgroundMessage(_onBackgroundMessage);
 
-  runApp(const SmartCareApp());
-}
+    final messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-Future<void> _setupLocalNotifications() async {
-  const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const initSettings = InitializationSettings(android: androidSettings);
-  await localNotifications.initialize(initSettings);
-}
-
-Future<void> _setupFCMListeners() async {
-  final messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission(alert: true, badge: true, sound: true);
-
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    final notification = message.notification;
-    if (notification != null) {
-      localNotifications.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'smartcare_channel',
-            'SmartCare 5.0 Alertas',
-            channelDescription: 'Alertas de saúde e logística',
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-        ),
+    FirebaseMessaging.onMessage.listen((message) {
+      final notification = message.notification;
+      if (notification == null) return;
+      NotificationService.instance.show(
+        title: notification.title ?? 'SmartCare 5.0',
+        body: notification.body ?? '',
       );
-    }
-  });
-}
-
-class SmartCareApp extends StatelessWidget {
-  const SmartCareApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => HomeProvider()),
-        ChangeNotifierProvider(create: (_) => DeliveryProvider()),
-        ChangeNotifierProvider(create: (_) => ConsultaProvider()),
-        ChangeNotifierProvider(create: (_) => AnalyticsProvider()),
-        ChangeNotifierProvider(create: (_) => ChatProvider()),
-        ChangeNotifierProvider(create: (_) => MapProvider()),
-      ],
-      child: MaterialApp.router(
-        title: 'SmartCare 5.0',
-        debugShowCheckedModeBanner: false,
-        theme: SmartCareTheme.light,
-        routerConfig: appRouter,
-      ),
-    );
+    });
+  } catch (e) {
+    debugPrint('[main] Firebase indisponível ($e) — push remoto desativado, '
+        'notificações locais seguem ativas');
   }
 }
