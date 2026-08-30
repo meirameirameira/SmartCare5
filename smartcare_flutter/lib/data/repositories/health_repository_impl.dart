@@ -5,7 +5,7 @@ import '../../core/result/result.dart';
 import '../../core/storage/local_cache.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/repositories.dart';
-import '../datasources/local/demo_catalog.dart';
+import '../datasources/patient_datasource.dart';
 import '../datasources/remote/vitals_remote_datasource.dart';
 import '../datasources/remote/weather_remote_datasource.dart';
 
@@ -22,12 +22,15 @@ class HealthRepositoryImpl implements HealthRepository {
     required VitalsDataSource vitals,
     required WeatherRemoteDataSource weather,
     required LocalCache cache,
+    PatientDataSource patient = const DemoPatientDataSource(),
     this.cacheTtl = const Duration(minutes: 10),
   })  : _vitals = vitals,
         _weather = weather,
-        _cache = cache;
+        _cache = cache,
+        _patient = patient;
 
   final VitalsDataSource _vitals;
+  final PatientDataSource _patient;
   final WeatherRemoteDataSource _weather;
   final LocalCache _cache;
 
@@ -36,8 +39,7 @@ class HealthRepositoryImpl implements HealthRepository {
   final Duration cacheTtl;
 
   @override
-  Future<Result<Patient>> loadPatient() async =>
-      Result.guard(() async => DemoCatalog.patient);
+  Future<Result<Patient>> loadPatient() => Result.guard(_patient.fetch);
 
   @override
   Future<Result<Sourced<VitalReading>>> loadVitals() =>

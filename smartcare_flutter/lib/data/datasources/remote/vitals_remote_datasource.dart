@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import '../../../core/network/api_client.dart';
 import '../../../domain/entities/entities.dart';
+import 'smarthas_api_datasource.dart';
 
 /// Fonte de leituras do wearable.
 ///
@@ -11,26 +11,17 @@ abstract interface class VitalsDataSource {
   Future<VitalReading> fetchLatest();
 }
 
-/// Gateway IoT SmartCare 5.0 (REST/HTTPS).
+/// Fonte ligada ao back-end Spring Boot (Smart HAS API).
 ///
-/// A URL base vem de `--dart-define=SMARTCARE_API_URL=...`; sem ela o app usa
-/// o simulador, em vez de quebrar ou apontar para um host inexistente.
-class WearableGatewayDataSource implements VitalsDataSource {
-  WearableGatewayDataSource(this._client, {required this.baseUrl});
+/// Substitui o antigo gateway fictício: as leituras agora vêm de
+/// `GET /api/v1/patients/{id}/vitals/latest`, autenticado por JWT.
+class ApiVitalsDataSource implements VitalsDataSource {
+  ApiVitalsDataSource(this._api);
 
-  final ApiClient _client;
-  final String baseUrl;
-
-  static const configuredBaseUrl =
-      String.fromEnvironment('SMARTCARE_API_URL', defaultValue: '');
-
-  static bool get isConfigured => configuredBaseUrl.isNotEmpty;
+  final SmartHasApiDataSource _api;
 
   @override
-  Future<VitalReading> fetchLatest() => _client.getJson(
-        '$baseUrl/v1/devices/wearable/latest',
-        decode: VitalReading.fromJson,
-      );
+  Future<VitalReading> fetchLatest() => _api.fetchLatestVitals();
 }
 
 /// Simulador de wearable com passeio aleatório em torno da linha de base do

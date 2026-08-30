@@ -45,9 +45,14 @@ class ApiClient {
     String url, {
     required T Function(Map<String, dynamic> json) decode,
     Map<String, dynamic>? query,
+    Map<String, String>? headers,
   }) async {
     return _withRetry(() async {
-      final response = await _dio.get<dynamic>(url, queryParameters: query);
+      final response = await _dio.get<dynamic>(
+        url,
+        queryParameters: query,
+        options: headers == null ? null : Options(headers: headers),
+      );
       final status = response.statusCode ?? 0;
       if (status < 200 || status >= 300) {
         throw ServerFailure(status);
@@ -57,6 +62,33 @@ class ApiClient {
         throw const ServerFailure(200, detail: 'Resposta em formato inesperado.');
       }
       return decode(body);
+    });
+  }
+
+  /// GET para endpoints que devolvem uma lista JSON no nível raiz.
+  Future<List<T>> getJsonList<T>(
+    String url, {
+    required T Function(Map<String, dynamic> json) decode,
+    Map<String, dynamic>? query,
+    Map<String, String>? headers,
+  }) async {
+    return _withRetry(() async {
+      final response = await _dio.get<dynamic>(
+        url,
+        queryParameters: query,
+        options: headers == null ? null : Options(headers: headers),
+      );
+      final status = response.statusCode ?? 0;
+      if (status < 200 || status >= 300) {
+        throw ServerFailure(status);
+      }
+      final body = response.data;
+      if (body is! List) {
+        throw const ServerFailure(200, detail: 'Esperava uma lista JSON.');
+      }
+      return body
+          .map((e) => decode((e as Map).cast<String, dynamic>()))
+          .toList(growable: false);
     });
   }
 

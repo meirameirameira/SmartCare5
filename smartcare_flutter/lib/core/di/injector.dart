@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+import '../../data/datasources/patient_datasource.dart';
 import '../../data/datasources/remote/ai_remote_datasource.dart';
+import '../../data/datasources/remote/smarthas_api_datasource.dart';
 import '../../data/datasources/remote/vitals_remote_datasource.dart';
 import '../../data/datasources/remote/weather_remote_datasource.dart';
 import '../../data/repositories/analytics_repository_impl.dart';
@@ -29,20 +31,26 @@ class Injector {
   }) : apiClient = apiClient ?? ApiClient() {
     final weatherDs = WeatherRemoteDataSource(this.apiClient);
 
-    // Sem gateway IoT configurado (--dart-define=SMARTCARE_API_URL), o app roda
-    // com o simulador de wearable em vez de falhar silenciosamente.
+    // Back-end Spring Boot configurado? Entao paciente e sinais vitais vem da
+    // API autenticada por JWT. Sem ele, o app roda em demonstracao com o
+    // simulador de wearable — em vez de falhar silenciosamente.
+    if (SmartHasApiConfig.isConfigured) {
+      final session = SmartHasApiSession(this.apiClient, cache);
+      smartHasApi = SmartHasApiDataSource(session);
+    }
+
     final vitalsDs = vitalsDataSource ??
-        (WearableGatewayDataSource.isConfigured
-            ? WearableGatewayDataSource(
-                this.apiClient,
-                baseUrl: WearableGatewayDataSource.configuredBaseUrl,
-              )
+        (smartHasApi != null
+            ? ApiVitalsDataSource(smartHasApi!)
             : SimulatedVitalsDataSource());
 
     health = HealthRepositoryImpl(
       vitals: vitalsDs,
       weather: weatherDs,
       cache: cache,
+      patient: smartHasApi != null
+          ? ApiPatientDataSource(smartHasApi!)
+          : const DemoPatientDataSource(),
     );
     delivery = DeliveryRepositoryImpl();
     consulta = ConsultaRepositoryImpl();
@@ -54,8 +62,8 @@ class Injector {
     devices = const DeviceRepositoryImpl();
     settings = SettingsRepositoryImpl(cache);
 
-    debugPrint('[Injector] gateway IoT: '
-        '${WearableGatewayDataSource.isConfigured ? "remoto" : "simulado"} · '
+    debugPrint('[Injector] back-end Smart HAS: '
+        '${SmartHasApiConfig.isConfigured ? SmartHasApiConfig.baseUrl : "modo demonstracao"} · '
         'IA generativa: ${AiRemoteDataSource.isConfigured ? "Gemini" : "base local"}');
   }
 
@@ -73,6 +81,9 @@ class Injector {
 
   final LocalCache cache;
   final ApiClient apiClient;
+
+  /// Cliente da API Smart HAS; `null` quando o app roda em modo demonstracao.
+  SmartHasApiDataSource? smartHasApi;
 
   late final HealthRepository health;
   late final DeliveryRepository delivery;

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Smart HAS — Painel do Back-end</title>
+    <link rel="stylesheet" th:href="@{/css/painel.css}">
+</head>
+<body>
+<header class="topo">
+    <div>
+        <h1>Smart HAS · SmartCare 5.0</h1>
+        <p class="sub">Painel server-side do back-end — gerado em <span th:text="${generatedAt}">--</span></p>
+    </div>
+    <nav>
+        <a th:href="@{/swagger-ui.html}">Swagger</a>
+        <a th:href="@{/actuator/health}">Health</a>
+        <a th:href="@{/h2-console}">H2</a>
+    </nav>
+</header>
+
+<main>
+    <section class="cards">
+        <article class="card">
+            <span class="rotulo">Pacientes</span>
+            <strong th:text="${overview.totalPatients()}">0</strong>
+        </article>
+        <article class="card alerta">
+            <span class="rotulo">Alertas abertos</span>
+            <strong th:text="${overview.openAlerts()}">0</strong>
+            <small th:text="${overview.urgentAlerts()} + ' urgente(s)'">0 urgente(s)</small>
+        </article>
+        <article class="card">
+            <span class="rotulo">Entregas em rota</span>
+            <strong th:text="${overview.deliveriesInTransit()}">0</strong>
+            <small th:text="${overview.deliveriesDelivered()} + ' concluida(s)'">0 concluida(s)</small>
+        </article>
+        <article class="card">
+            <span class="rotulo">Consultas agendadas</span>
+            <strong th:text="${overview.upcomingAppointments()}">0</strong>
+        </article>
+    </section>
+
+    <section class="painel-duplo">
+        <div class="bloco">
+            <h2>Pacientes recentes</h2>
+            <table>
+                <thead>
+                <tr><th>Nome</th><th>Idade</th><th>Condicoes</th><th>Wearable</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="p : ${recentPatients}">
+                    <td th:text="${p.name()}">-</td>
+                    <td th:text="${p.age()}">-</td>
+                    <td th:text="${#strings.listJoin(p.conditions(), ', ')}">-</td>
+                    <td>
+                        <span th:if="${p.wearableConnected()}" class="tag ok">conectado</span>
+                        <span th:unless="${p.wearableConnected()}" class="tag off">offline</span>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(recentPatients)}">
+                    <td colspan="4" class="vazio">Nenhum paciente cadastrado.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bloco">
+            <h2>Entregas (AI Logistics Extension)</h2>
+            <table>
+                <thead>
+                <tr><th>Pedido</th><th>Paciente</th><th>Farmacia</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="d : ${recentDeliveries}">
+                    <td th:text="${d.orderCode()}">-</td>
+                    <td th:text="${d.patientName()}">-</td>
+                    <td th:text="${d.pharmacyName()}">-</td>
+                    <td><span class="tag" th:text="${d.status()}">-</span></td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(recentDeliveries)}">
+                    <td colspan="4" class="vazio">Nenhuma entrega registrada.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="bloco">
+        <h2>Entregas por status</h2>
+        <ul class="status-lista">
+            <li th:each="entrada : ${overview.deliveriesByStatus()}">
+                <span th:text="${entrada.key}">STATUS</span>
+                <b th:text="${entrada.value}">0</b>
+            </li>
+        </ul>
+    </section>
+</main>
+
+<footer>
+    <p>API REST consumida pelo app Flutter e pelo dashboard Angular · versao 5.0.0</p>
+</footer>
+</body>
+</html>
