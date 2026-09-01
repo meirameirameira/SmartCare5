@@ -1,0 +1,54 @@
+.cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 22px;
+  background: var(--verde-escuro);
+  color: #fff;
+}
+
+.marca { display: flex; align-items: center; gap: 10px; }
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .16);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.marca strong { display: block; font-size: 15px; }
+.marca small { font-size: 11px; opacity: .75; }
+
+nav { display: flex; gap: 6px; }
+
+nav a {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  opacity: .8;
+}
+
+nav a:hover { opacity: 1; background: rgba(255, 255, 255, .1); }
+
+nav a.ativo {
+  opacity: 1;
+  background: rgba(255, 255, 255, .18);
+  font-weight: 600;
+}
+
+.usuario {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .cabecalho { flex-wrap: wrap; gap: 12px; }
+  .usuario { margin-left: 0; }
+}

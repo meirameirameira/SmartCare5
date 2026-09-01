@@ -1,0 +1,76 @@
+.topo { margin-bottom: 18px; }
+
+.colunas {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 940px) {
+  .colunas { grid-template-columns: 1fr; }
+}
+
+.lista { padding: 14px; }
+
+.busca {
+  display: flex;
+  gap: 8px;
+  padding: 4px 4px 14px;
+}
+
+.busca input { flex: 1; }
+
+.iniciais {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--verde-claro);
+  color: var(--verde-escuro);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.condicoes .etiqueta { margin: 2px 4px 2px 0; }
+.condicoes .sem { color: var(--texto-suave); }
+
+.acoes { display: flex; gap: 6px; justify-content: flex-end; }
+.acoes button { padding: 6px 12px; font-size: 12px; }
+
+button.perigo { background: #fdecea; color: var(--vermelho); }
+
+tr.editando { background: #f3f9f6; }
+
+.formulario h2 { font-size: 16px; margin-bottom: 14px; }
+
+.formulario form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formulario label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.formulario label.linha {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  color: var(--texto);
+  font-size: 14px;
+}
+
+.formulario label.linha input { width: auto; }
+
+.ajuda { font-size: 11px; color: var(--texto-suave); }
+
+.botoes { display: flex; gap: 8px; }

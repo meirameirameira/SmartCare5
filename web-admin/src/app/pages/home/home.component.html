@@ -1,0 +1,63 @@
+<div class="conteudo">
+  <div class="topo">
+    <div>
+      <h1 class="titulo-pagina">Ola, {{ nome }}</h1>
+      <p class="subtitulo">
+        Situacao da plataforma Smart HAS
+        <span *ngIf="atualizadoEm">
+          · atualizado as {{ atualizadoEm | date: 'HH:mm:ss' }}
+        </span>
+      </p>
+    </div>
+    <button type="button" (click)="carregar()" [disabled]="carregando">
+      {{ carregando ? 'Atualizando...' : 'Atualizar' }}
+    </button>
+  </div>
+
+  <div class="faixa erro" *ngIf="erro">
+    <span>{{ erro }}</span>
+    <button type="button" (click)="carregar()">Tentar novamente</button>
+  </div>
+
+  <p class="carregando" *ngIf="carregando && !visao">
+    Carregando indicadores da operacao...
+  </p>
+
+  <ng-container *ngIf="visao">
+    <section class="grade-cartoes">
+      <article
+        class="cartao indicador"
+        *ngFor="let item of indicadores"
+        [ngClass]="{ atencao: item.destaque }"
+      >
+        <span class="rotulo">{{ item.titulo }}</span>
+        <strong class="valor">{{ item.valor }}</strong>
+        <small *ngIf="item.detalhe">{{ item.detalhe }}</small>
+      </article>
+    </section>
+
+    <h2 class="rotulo-secao">Entregas por status</h2>
+    <section class="cartao">
+      <ul class="status-lista">
+        <li *ngFor="let linha of statusEntregas">
+          <span class="etiqueta" [ngClass]="linha.status.toLowerCase()">
+            {{ rotulo(linha.status) }}
+          </span>
+          <b>{{ linha.total }}</b>
+        </li>
+      </ul>
+    </section>
+
+    <h2 class="rotulo-secao">Acoes</h2>
+    <section class="grade-cartoes">
+      <a class="cartao acao" routerLink="/admin">
+        <strong>Gerenciar pacientes</strong>
+        <span>Cadastrar, editar e consultar prontuarios monitorados.</span>
+      </a>
+      <a class="cartao acao" routerLink="/entregas">
+        <strong>Acompanhar entregas</strong>
+        <span>Rastrear pedidos e avancar etapas da rota.</span>
+      </a>
+    </section>
+  </ng-container>
+</div>

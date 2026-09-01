@@ -1,0 +1,103 @@
+<div class="conteudo">
+  <div class="topo">
+    <div>
+      <h1 class="titulo-pagina">Entregas de medicamentos</h1>
+      <p class="subtitulo">AI Logistics Extension · {{ entregasFiltradas.length }} pedido(s) exibido(s)</p>
+    </div>
+
+    <div class="controles">
+      <label>
+        Status
+        <select name="filtro" [(ngModel)]="filtroStatus">
+          <option *ngFor="let opcao of opcoesStatus" [value]="opcao.valor">
+            {{ opcao.rotulo }}
+          </option>
+        </select>
+      </label>
+      <button type="button" (click)="carregar()" [disabled]="carregando">
+        {{ carregando ? 'Atualizando...' : 'Atualizar' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="faixa erro" *ngIf="erro">
+    <span>{{ erro }}</span>
+    <button type="button" (click)="carregar()">Recarregar</button>
+  </div>
+
+  <div class="faixa sucesso" *ngIf="aviso">
+    <span>{{ aviso }}</span>
+  </div>
+
+  <p class="carregando" *ngIf="carregando && entregas.length === 0">
+    Carregando pedidos...
+  </p>
+
+  <p class="vazio" *ngIf="!carregando && entregasFiltradas.length === 0">
+    Nenhum pedido para o filtro selecionado.
+  </p>
+
+  <section class="cartao" *ngIf="entregasFiltradas.length > 0">
+    <table>
+      <thead>
+        <tr>
+          <th>Pedido</th>
+          <th>Paciente</th>
+          <th>Farmacia</th>
+          <th>Trilha</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let entrega of entregasFiltradas">
+          <td>
+            <strong>{{ entrega.orderCode }}</strong>
+            <small class="descricao">{{ entrega.description }}</small>
+            <small class="ia" *ngIf="entrega.proactiveMessage">
+              {{ entrega.proactiveMessage }}
+            </small>
+          </td>
+          <td>{{ entrega.patientName }}</td>
+          <td>
+            {{ entrega.pharmacyName }}
+            <small class="descricao">{{ entrega.distanceKm }} km</small>
+          </td>
+          <td>
+            <div class="trilha">
+              <span
+                *ngFor="let etapa of entrega.steps"
+                class="passo"
+                [ngClass]="{ feito: etapa.done, atual: etapa.current }"
+                [title]="etapa.label"
+              ></span>
+            </div>
+            <small class="descricao">{{ entrega.steps[entrega.currentStep]?.label }}</small>
+          </td>
+          <td>
+            <span class="etiqueta" [ngClass]="classe(entrega.status)">
+              {{ rotulo(entrega.status) }}
+            </span>
+          </td>
+          <td class="acoes">
+            <button
+              type="button"
+              (click)="avancar(entrega)"
+              [disabled]="!proximoStatus(entrega) || atualizandoId === entrega.id"
+            >
+              {{ atualizandoId === entrega.id ? '...' : 'Avancar' }}
+            </button>
+            <button
+              class="perigo"
+              type="button"
+              (click)="cancelar(entrega)"
+              [disabled]="!proximoStatus(entrega) || atualizandoId === entrega.id"
+            >
+              Cancelar
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>

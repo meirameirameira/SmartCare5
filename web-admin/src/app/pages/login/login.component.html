@@ -1,0 +1,53 @@
+<div class="tela">
+  <section class="painel">
+    <div class="marca">
+      <span class="logo">SH</span>
+      <div>
+        <h1>Smart HAS</h1>
+        <p>Painel administrativo · SmartCare 5.0</p>
+      </div>
+    </div>
+
+    <p class="faixa erro" *ngIf="erro">
+      <span>{{ erro }}</span>
+    </p>
+
+    <form (ngSubmit)="entrar()">
+      <label>
+        E-mail
+        <input
+          name="email"
+          type="email"
+          autocomplete="username"
+          placeholder="voce@smarthas.com"
+          [(ngModel)]="email"
+          [disabled]="entrando"
+        />
+      </label>
+
+      <label>
+        Senha
+        <input
+          name="senha"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Sua senha"
+          [(ngModel)]="senha"
+          [disabled]="entrando"
+        />
+      </label>
+
+      <button type="submit" [disabled]="entrando">
+        {{ entrando ? 'Entrando...' : 'Entrar' }}
+      </button>
+    </form>
+
+    <button class="secundario demo" type="button" (click)="usarDemonstracao()">
+      Usar credenciais de demonstracao
+    </button>
+
+    <p class="nota">
+      O painel consome a mesma API REST do aplicativo movel, autenticada por JWT.
+    </p>
+  </section>
+</div>

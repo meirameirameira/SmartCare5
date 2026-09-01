@@ -1,0 +1,24 @@
+<header class="cabecalho" *ngIf="mostrarCabecalho">
+  <div class="marca">
+    <span class="logo">SH</span>
+    <div>
+      <strong>Smart HAS</strong>
+      <small>Painel administrativo</small>
+    </div>
+  </div>
+
+  <nav>
+    <a routerLink="/home" routerLinkActive="ativo">Visao geral</a>
+    <a routerLink="/admin" routerLinkActive="ativo">Pacientes</a>
+    <a routerLink="/entregas" routerLinkActive="ativo">Entregas</a>
+  </nav>
+
+  <div class="usuario">
+    <span *ngIf="auth.usuario as usuario">
+      {{ usuario.name }} · {{ usuario.role }}
+    </span>
+    <button class="secundario" type="button" (click)="sair()">Sair</button>
+  </div>
+</header>
+
+<router-outlet />

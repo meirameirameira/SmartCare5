@@ -32,8 +32,11 @@ google-services.json
 # Android Profiling
 *.hprof
 
-# Node
+# Node / Angular
 node_modules/
+dist/
+.angular/
+out-tsc/
 
 # Project-specific
 .claude/

@@ -1,0 +1,166 @@
+<div class="conteudo">
+  <div class="topo">
+    <div>
+      <h1 class="titulo-pagina">Pacientes monitorados</h1>
+      <p class="subtitulo">
+        Prontuarios vindos de GET /api/v1/patients
+      </p>
+    </div>
+  </div>
+
+  <div class="faixa erro" *ngIf="erro">
+    <span>{{ erro }}</span>
+    <button type="button" (click)="carregar()">Tentar novamente</button>
+  </div>
+
+  <div class="faixa sucesso" *ngIf="sucesso">
+    <span>{{ sucesso }}</span>
+  </div>
+
+  <div class="colunas">
+    <section class="cartao lista">
+      <div class="busca">
+        <input
+          name="busca"
+          type="search"
+          placeholder="Buscar por nome..."
+          [(ngModel)]="busca"
+          (keyup.enter)="carregar()"
+        />
+        <button type="button" (click)="carregar()" [disabled]="carregando">
+          Buscar
+        </button>
+        <button
+          class="secundario"
+          type="button"
+          (click)="limparBusca()"
+          *ngIf="busca"
+        >
+          Limpar
+        </button>
+      </div>
+
+      <p class="carregando" *ngIf="carregando">Carregando prontuarios...</p>
+
+      <p class="vazio" *ngIf="!carregando && pacientes.length === 0">
+        Nenhum paciente encontrado para o filtro informado.
+      </p>
+
+      <table *ngIf="!carregando && pacientes.length > 0">
+        <thead>
+          <tr>
+            <th>Paciente</th>
+            <th>Idade</th>
+            <th>Condicoes</th>
+            <th>Wearable</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let paciente of pacientes" [ngClass]="{ editando: paciente.id === editandoId }">
+            <td>
+              <span class="iniciais">{{ paciente.initials }}</span>
+              {{ paciente.name }}
+            </td>
+            <td>{{ paciente.age }}</td>
+            <td class="condicoes">
+              <span *ngIf="paciente.conditions.length === 0" class="sem">—</span>
+              <span class="etiqueta" *ngFor="let c of paciente.conditions">{{ c }}</span>
+            </td>
+            <td>
+              <span class="etiqueta" [ngClass]="paciente.wearableConnected ? 'entregue' : 'cancelado'">
+                {{ paciente.wearableConnected ? 'conectado' : 'offline' }}
+              </span>
+            </td>
+            <td class="acoes">
+              <button class="secundario" type="button" (click)="editar(paciente)" [disabled]="!podeEditar">
+                Editar
+              </button>
+              <button class="perigo" type="button" (click)="remover(paciente)" [disabled]="!podeEditar">
+                Remover
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="cartao formulario">
+      <h2>{{ editandoId === null ? 'Novo paciente' : 'Editando prontuario' }}</h2>
+      <p class="subtitulo" *ngIf="!podeEditar">
+        Seu perfil nao tem permissao de escrita. Entre como equipe assistencial.
+      </p>
+
+      <form (ngSubmit)="salvar()">
+        <label>
+          Nome
+          <input
+            name="nome"
+            type="text"
+            placeholder="Nome completo"
+            [(ngModel)]="formulario.name"
+            [class.invalido]="errosCampo['name']"
+            [disabled]="salvando || !podeEditar"
+          />
+          <small class="erro-campo" *ngIf="errosCampo['name']">
+            {{ errosCampo['name'] }}
+          </small>
+        </label>
+
+        <label>
+          Idade
+          <input
+            name="idade"
+            type="number"
+            min="0"
+            max="130"
+            placeholder="Anos"
+            [(ngModel)]="formulario.age"
+            [class.invalido]="errosCampo['age']"
+            [disabled]="salvando || !podeEditar"
+          />
+          <small class="erro-campo" *ngIf="errosCampo['age']">
+            {{ errosCampo['age'] }}
+          </small>
+        </label>
+
+        <label>
+          Condicoes cronicas
+          <input
+            name="condicoes"
+            type="text"
+            placeholder="Hipertensao leve, Diabetes tipo 2"
+            [(ngModel)]="formulario.condicoesTexto"
+            [disabled]="salvando || !podeEditar"
+          />
+          <small class="ajuda">Separe por virgula.</small>
+        </label>
+
+        <label class="linha">
+          <input
+            name="wearable"
+            type="checkbox"
+            [(ngModel)]="formulario.wearableConnected"
+            [disabled]="salvando || !podeEditar"
+          />
+          Wearable conectado
+        </label>
+
+        <div class="botoes">
+          <button type="submit" [disabled]="salvando || !podeEditar">
+            {{ salvando ? 'Salvando...' : (editandoId === null ? 'Cadastrar paciente' : 'Salvar alteracoes') }}
+          </button>
+          <button
+            class="secundario"
+            type="button"
+            (click)="cancelarEdicao()"
+            *ngIf="editandoId !== null"
+            [disabled]="salvando"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
