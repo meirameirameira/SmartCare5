@@ -122,7 +122,6 @@ class InMemoryCache implements LocalCache {
 /// Chaves de cache centralizadas (evita strings mágicas espalhadas).
 abstract final class CacheKeys {
   static const vitals = 'smartcare.vitals';
-  static const weather = 'smartcare.weather';
   static const chatHistory = 'smartcare.chat.history';
   static const themeMode = 'smartcare.settings.themeMode';
   static const textScale = 'smartcare.settings.textScale';

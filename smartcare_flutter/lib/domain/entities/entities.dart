@@ -396,7 +396,7 @@ class QuickPrompt {
 
 // ─── Mapa / dispositivos IoT ──────────────────────────────────────────────────
 
-enum DeviceType { sensor, camera, pharmacy, hospital, user }
+enum DeviceType { pharmacy, hospital, user }
 
 class SmartDevice {
   final String id;

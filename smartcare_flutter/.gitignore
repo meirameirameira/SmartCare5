@@ -27,3 +27,7 @@ ios/Flutter/Flutter.release.xcconfig
 
 # Misc
 *.log
+
+# Segredos locais (gerados por: dart run tool/gen_env.dart)
+.env
+dart_defines.json

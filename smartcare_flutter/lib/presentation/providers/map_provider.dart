@@ -22,6 +22,9 @@ class MapProvider extends ChangeNotifier {
   /// Falha de localização: exibida como aviso não bloqueante no mapa.
   AppFailure? locationFailure;
 
+  /// Falha ao buscar os pontos de atendimento, com opção de tentar de novo.
+  AppFailure? searchFailure;
+
   double? _lat;
   double? _lng;
 
@@ -35,8 +38,7 @@ class MapProvider extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
 
-    devices = (await _repository.loadDevices()).valueOrNull ?? const [];
-
+    // A posição vem primeiro: é ela que define onde procurar atendimento.
     final location = await _repository.currentLocation();
     location.when(
       ok: (coords) {
@@ -50,8 +52,46 @@ class MapProvider extends ChangeNotifier {
       },
     );
 
+    await _loadCarePoints();
+
     isLoading = false;
     notifyListeners();
+  }
+
+  /// Refaz a busca em volta do centro atual — usado pela ação de tentar de novo.
+  Future<void> retrySearch() async {
+    isLoading = true;
+    notifyListeners();
+
+    await _loadCarePoints();
+
+    isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> _loadCarePoints() async {
+    final result = await _repository.nearbyCarePoints(
+      lat: centerLat,
+      lng: centerLng,
+    );
+
+    result.when(
+      ok: (found) {
+        devices = found;
+        searchFailure = null;
+      },
+      err: (f) {
+        devices = const [];
+        searchFailure = f;
+        debugPrint('[MapProvider] busca de atendimento falhou: ${f.message}');
+      },
+    );
+
+    // Um ponto selecionado antes da nova busca pode nao existir mais na lista.
+    if (selectedDevice != null &&
+        !devices.any((d) => d.id == selectedDevice!.id)) {
+      selectedDevice = null;
+    }
   }
 
   void selectDevice(SmartDevice? device) {

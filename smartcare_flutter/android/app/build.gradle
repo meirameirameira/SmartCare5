@@ -13,8 +13,6 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def googleMapsKey = localProperties.getProperty('GOOGLE_MAPS_API_KEY', 'YOUR_MAPS_API_KEY_HERE')
-
 android {
     namespace "com.smarthas.smartcare_flutter"
     compileSdk flutter.compileSdkVersion
@@ -39,7 +37,6 @@ android {
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutter.versionCode
         versionName flutter.versionName
-        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsKey
     }
 
     buildTypes {

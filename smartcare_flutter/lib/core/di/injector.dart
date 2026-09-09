@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/datasources/patient_datasource.dart';
 import '../../data/datasources/remote/ai_remote_datasource.dart';
+import '../../data/datasources/remote/overpass_datasource.dart';
 import '../../data/datasources/remote/smarthas_api_datasource.dart';
 import '../../data/datasources/remote/vitals_remote_datasource.dart';
-import '../../data/datasources/remote/weather_remote_datasource.dart';
 import '../../data/repositories/analytics_repository_impl.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../data/repositories/device_repository_impl.dart';
@@ -29,8 +29,6 @@ class Injector {
     ApiClient? apiClient,
     VitalsDataSource? vitalsDataSource,
   }) : apiClient = apiClient ?? ApiClient() {
-    final weatherDs = WeatherRemoteDataSource(this.apiClient);
-
     // Back-end Spring Boot configurado? Entao paciente e sinais vitais vem da
     // API autenticada por JWT. Sem ele, o app roda em demonstracao com o
     // simulador de wearable — em vez de falhar silenciosamente.
@@ -46,20 +44,23 @@ class Injector {
 
     health = HealthRepositoryImpl(
       vitals: vitalsDs,
-      weather: weatherDs,
       cache: cache,
       patient: smartHasApi != null
           ? ApiPatientDataSource(smartHasApi!)
           : const DemoPatientDataSource(),
     );
-    delivery = DeliveryRepositoryImpl();
+    // Com o back-end no ar, a camada AI Logistics tambem vem da API: o app e
+    // o painel administrativo passam a mostrar exatamente o mesmo pedido.
+    delivery = smartHasApi != null
+        ? ApiDeliveryRepository(smartHasApi!)
+        : DeliveryRepositoryImpl();
     consulta = ConsultaRepositoryImpl();
     analytics = AnalyticsRepositoryImpl(health: health);
     chat = ChatRepositoryImpl(
       remote: AiRemoteDataSource(this.apiClient),
       cache: cache,
     );
-    devices = const DeviceRepositoryImpl();
+    devices = DeviceRepositoryImpl(OverpassDataSource(this.apiClient));
     settings = SettingsRepositoryImpl(cache);
 
     debugPrint('[Injector] back-end Smart HAS: '

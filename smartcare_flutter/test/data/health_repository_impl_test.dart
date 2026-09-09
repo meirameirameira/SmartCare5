@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smartcare_flutter/core/error/failures.dart';
-import 'package:smartcare_flutter/core/network/api_client.dart';
 import 'package:smartcare_flutter/core/storage/local_cache.dart';
 import 'package:smartcare_flutter/data/datasources/remote/vitals_remote_datasource.dart';
-import 'package:smartcare_flutter/data/datasources/remote/weather_remote_datasource.dart';
 import 'package:smartcare_flutter/data/repositories/health_repository_impl.dart';
 import 'package:smartcare_flutter/domain/entities/entities.dart';
 
@@ -42,7 +40,6 @@ void main() {
     cache = InMemoryCache();
     repository = HealthRepositoryImpl(
       vitals: vitals,
-      weather: WeatherRemoteDataSource(ApiClient()),
       cache: cache,
     );
   });

@@ -5,20 +5,46 @@ import '../../core/result/result.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/repositories.dart';
 import '../datasources/local/demo_catalog.dart';
+import '../datasources/remote/overpass_datasource.dart';
 
-/// Dispositivos IoT do ecossistema SmartCare e localização do paciente.
+/// Pontos de atendimento em volta do paciente e localização do dispositivo.
 ///
-/// A negação de permissão agora vira uma [PermissionFailure] tipada, que a tela
+/// A lista vem do OpenStreetMap em tempo real, então acompanha o usuário para
+/// onde ele estiver. O catálogo estático só entra como rede de segurança
+/// quando a busca falha sobre a localização padrão, que é São Paulo.
+///
+/// A negação de permissão vira uma [PermissionFailure] tipada, que a tela
 /// exibe como aviso — antes o erro era engolido e o mapa ficava em São Paulo
 /// sem explicar o motivo ao usuário.
 class DeviceRepositoryImpl implements DeviceRepository {
-  const DeviceRepositoryImpl();
+  const DeviceRepositoryImpl(this._overpass);
+
+  final OverpassDataSource _overpass;
 
   static const fallbackLocation = (lat: -23.5505, lng: -46.6333);
 
+  /// Distância a partir da qual o catálogo de São Paulo deixa de fazer sentido.
+  static const _fallbackToleranceDegrees = 0.05;
+
   @override
-  Future<Result<List<SmartDevice>>> loadDevices() =>
-      Result.guard(() async => DemoCatalog.devices);
+  Future<Result<List<SmartDevice>>> nearbyCarePoints({
+    required double lat,
+    required double lng,
+  }) async {
+    final result = await Result.guard(
+      () => _overpass.nearbyCarePoints(lat: lat, lng: lng),
+    );
+
+    return switch (result) {
+      Ok(value: final devices) when devices.isNotEmpty => Ok(devices),
+      _ when _isFallbackLocation(lat, lng) => const Ok(DemoCatalog.devices),
+      _ => result,
+    };
+  }
+
+  bool _isFallbackLocation(double lat, double lng) =>
+      (lat - fallbackLocation.lat).abs() < _fallbackToleranceDegrees &&
+      (lng - fallbackLocation.lng).abs() < _fallbackToleranceDegrees;
 
   @override
   Future<Result<({double lat, double lng})>> currentLocation() async {

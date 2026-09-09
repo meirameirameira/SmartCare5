@@ -20,7 +20,6 @@ class HomeSnapshot {
     required this.score,
     required this.evaluations,
     required this.alerts,
-    this.weather,
     this.fromCache = false,
     this.updatedAt,
   });
@@ -30,20 +29,9 @@ class HomeSnapshot {
   final HealthScore score;
   final List<VitalEvaluation> evaluations;
   final List<HealthAlert> alerts;
-  final String? weather;
   final bool fromCache;
   final DateTime? updatedAt;
 
-  HomeSnapshot copyWith({String? weather}) => HomeSnapshot(
-        patient: patient,
-        vitals: vitals,
-        score: score,
-        evaluations: evaluations,
-        alerts: alerts,
-        weather: weather ?? this.weather,
-        fromCache: fromCache,
-        updatedAt: updatedAt,
-      );
 }
 
 /// Provider do dashboard.
@@ -94,7 +82,6 @@ class HomeProvider extends ChangeNotifier {
   HealthScore? get healthScore => snapshot?.score;
   List<VitalEvaluation> get evaluations => snapshot?.evaluations ?? const [];
   List<HealthAlert> get alerts => snapshot?.alerts ?? const [];
-  String? get weatherInfo => snapshot?.weather;
   bool get isLoading => _state.isLoading && snapshot == null;
   AppFailure? get failure => _state.failureOrNull;
 
@@ -111,7 +98,7 @@ class HomeProvider extends ChangeNotifier {
 
   // ── Ciclo de dados ─────────────────────────────────────────────────────────
 
-  /// Recarrega paciente, sinais vitais e clima; recalcula score e alertas.
+  /// Recarrega paciente e sinais vitais; recalcula score e alertas.
   Future<void> refresh() async {
     if (_refreshing) return;
     _refreshing = true;
@@ -143,7 +130,6 @@ class HomeProvider extends ChangeNotifier {
           score: score,
           evaluations: _scoreEngine.evaluateVitals(vitals),
           alerts: _alertEngine.build(vitals),
-          weather: snapshot?.weather,
           fromCache: sourced.fromCache,
           updatedAt: sourced.updatedAt ?? DateTime.now(),
         ),
@@ -151,25 +137,9 @@ class HomeProvider extends ChangeNotifier {
         fromCache: sourced.fromCache,
       );
       notifyListeners();
-
-      // Clima é complementar: falha aqui não invalida o dashboard.
-      unawaited(_loadWeather());
     } finally {
       _refreshing = false;
     }
-  }
-
-  Future<void> _loadWeather() async {
-    final result = await _repository.loadWeather();
-    final current = snapshot;
-    if (current == null) return;
-    result.when(
-      ok: (sourced) {
-        _state = ViewState.ready(current.copyWith(weather: sourced.value));
-        notifyListeners();
-      },
-      err: (f) => debugPrint('[HomeProvider] clima indisponível: ${f.message}'),
-    );
   }
 
   /// Inicia a leitura periódica do wearable.

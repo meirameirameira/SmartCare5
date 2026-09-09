@@ -127,6 +127,20 @@ class SmartHasApiSession {
         ));
   }
 
+  /// PATCH autenticado com reautenticação automática em caso de 401.
+  Future<T> patch<T>(
+    String path, {
+    required Map<String, dynamic> body,
+    required T Function(Map<String, dynamic>) decode,
+  }) {
+    return _authenticated(() => _client.patchJson<T>(
+          '$baseUrl$path',
+          body: body,
+          decode: decode,
+          headers: _authHeaders,
+        ));
+  }
+
   Map<String, String> get _authHeaders =>
       _token == null ? const {} : {'Authorization': 'Bearer $_token'};
 
@@ -196,6 +210,68 @@ class SmartHasApiDataSource {
       decode: _alertFromJson,
     );
   }
+
+  /// Pedidos da camada AI Logistics Extension do paciente da sessao.
+  Future<List<DeliveryOrder>> fetchDeliveries() async {
+    final id = await ensurePatientId();
+    return session.getList(
+      '/api/v1/patients/$id/deliveries',
+      decode: deliveryFromJson,
+    );
+  }
+
+  /// Avanca o pedido no fluxo logistico (o servidor recusa transicoes invalidas).
+  Future<DeliveryOrder> changeDeliveryStatus(String orderId, DeliveryStatus status) {
+    return session.patch(
+      '/api/v1/deliveries/$orderId/status',
+      body: {'status': _statusToApi(status)},
+      decode: deliveryFromJson,
+    );
+  }
+
+  static String _statusToApi(DeliveryStatus status) => switch (status) {
+        DeliveryStatus.confirmed => 'CONFIRMED',
+        DeliveryStatus.preparing => 'PREPARING',
+        DeliveryStatus.inTransit => 'IN_TRANSIT',
+        DeliveryStatus.delivered => 'DELIVERED',
+        DeliveryStatus.cancelled => 'CANCELLED',
+      };
+
+  /// Converte o `DeliveryResponse` da API na entidade de dominio.
+  ///
+  /// A API guarda o ETA em minutos; a tela mostra uma janela de horario, entao
+  /// a faixa e derivada aqui a partir do relogio do dispositivo.
+  @visibleForTesting
+  static DeliveryOrder deliveryFromJson(Map<String, dynamic> json) {
+    final eta = (json['etaMinutes'] as num?)?.toInt();
+    final agora = DateTime.now();
+    final inicio = eta == null ? null : agora.add(Duration(minutes: eta));
+    final fim = inicio?.add(const Duration(minutes: 40));
+
+    return DeliveryOrder(
+      id: json['id'].toString(),
+      orderCode: json['orderCode'] as String,
+      description: json['description'] as String,
+      pharmacyName: json['pharmacyName'] as String,
+      status: switch (json['status'] as String? ?? 'CONFIRMED') {
+        'PREPARING' => DeliveryStatus.preparing,
+        'IN_TRANSIT' => DeliveryStatus.inTransit,
+        'DELIVERED' => DeliveryStatus.delivered,
+        'CANCELLED' => DeliveryStatus.cancelled,
+        _ => DeliveryStatus.confirmed,
+      },
+      currentStep: (json['currentStep'] as num?)?.toInt() ?? 0,
+      etaFrom: inicio == null ? '--' : _hora(inicio),
+      etaTo: fim == null ? '--' : _hora(fim),
+      distanceKm: (json['distanceKm'] as num?)?.toDouble() ?? 0,
+      proactiveMessage: json['proactiveMessage'] as String?,
+      minutesAway: eta,
+    );
+  }
+
+  static String _hora(DateTime momento) =>
+      '${momento.hour.toString().padLeft(2, '0')}h'
+      '${momento.minute.toString().padLeft(2, '0')}';
 
   static Patient _patientFromJson(Map<String, dynamic> json) => Patient(
         id: json['id'].toString(),

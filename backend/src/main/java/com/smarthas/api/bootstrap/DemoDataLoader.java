@@ -10,6 +10,7 @@ import com.smarthas.api.repository.DeliveryOrderRepository;
 import com.smarthas.api.repository.DoctorRepository;
 import com.smarthas.api.repository.PatientRepository;
 import com.smarthas.api.repository.VitalReadingRepository;
+import com.smarthas.api.service.AlertService;
 import com.smarthas.api.domain.Appointment;
 import com.smarthas.api.domain.DeliveryOrder;
 import com.smarthas.api.domain.DeliveryStatus;
@@ -42,17 +43,20 @@ public class DemoDataLoader implements CommandLineRunner {
     private final DoctorRepository doctors;
     private final AppointmentRepository appointments;
     private final DeliveryOrderRepository deliveries;
+    private final AlertService alertService;
     private final PasswordEncoder passwordEncoder;
 
     public DemoDataLoader(AppUserRepository users, PatientRepository patients, VitalReadingRepository readings,
                           DoctorRepository doctors, AppointmentRepository appointments,
-                          DeliveryOrderRepository deliveries, PasswordEncoder passwordEncoder) {
+                          DeliveryOrderRepository deliveries, AlertService alertService,
+                          PasswordEncoder passwordEncoder) {
         this.users = users;
         this.patients = patients;
         this.readings = readings;
         this.doctors = doctors;
         this.appointments = appointments;
         this.deliveries = deliveries;
+        this.alertService = alertService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -86,6 +90,11 @@ public class DemoDataLoader implements CommandLineRunner {
         seedReadings(felipe, 40);
         seedReadings(joao, 20);
 
+        // Um quadro alterado no historico de Joao para que o painel abra com
+        // alertas reais. Os alertas nao sao escritos a mao: a leitura passa
+        // pelo mesmo motor de regras usado em producao.
+        seedOpenAlerts(joao);
+
         DeliveryOrder order = deliveries.save(new DeliveryOrder(felipe, "SC-2026-0412",
                 "Metformina 500mg (60cp) + Losartana 50mg (30cp)", "Farmacia Leroy Health", 3.2, 28));
         order.changeStatus(DeliveryStatus.PREPARING, null);
@@ -101,8 +110,29 @@ public class DemoDataLoader implements CommandLineRunner {
         appointments.save(new Appointment(felipe, ricardo,
                 Instant.now().plus(6, ChronoUnit.HOURS), true, "Revisao trimestral de glicemia"));
 
-        log.info("Carga de demonstracao concluida: {} pacientes, {} leituras, {} pedidos.",
-                patients.count(), readings.count(), deliveries.count());
+        log.info("Carga de demonstracao concluida: {} pacientes, {} leituras, {} pedidos, {} alertas em aberto.",
+                patients.count(), readings.count(), deliveries.count(), alertService.countOpen());
+    }
+
+    /**
+     * Registra a leitura mais recente do paciente fora das faixas de referencia
+     * e deixa o motor de alertas gerar os avisos correspondentes.
+     *
+     * <p>Garante que o painel administrativo e a visao geral tenham conteudo
+     * desde o primeiro acesso, sem alerta fabricado manualmente.</p>
+     */
+    private void seedOpenAlerts(Patient patient) {
+        VitalReading altered = readings.save(new VitalReading(
+                patient,
+                112,    // taquicardia: fora da faixa de atencao
+                93.4,   // SpO2 em atencao
+                168,    // glicemia em atencao
+                138,    // sistolica em atencao
+                88,     // diastolica em atencao
+                37.4,
+                Instant.now().minus(35, ChronoUnit.MINUTES)));
+
+        alertService.generateFrom(altered);
     }
 
     /** Gera um historico plausivel com passeio aleatorio em torno da linha de base. */

@@ -26,7 +26,6 @@ abstract interface class HealthRepository {
   Future<Result<Sourced<VitalReading>>> loadVitals();
 
   /// Condições climáticas usadas nas recomendações contextuais.
-  Future<Result<Sourced<String>>> loadWeather();
 }
 
 abstract interface class DeliveryRepository {
@@ -57,7 +56,12 @@ abstract interface class ChatRepository {
 }
 
 abstract interface class DeviceRepository {
-  Future<Result<List<SmartDevice>>> loadDevices();
+  /// Farmácias e hospitais reais em volta da coordenada informada.
+  Future<Result<List<SmartDevice>>> nearbyCarePoints({
+    required double lat,
+    required double lng,
+  });
+
   Future<Result<({double lat, double lng})>> currentLocation();
 }
 

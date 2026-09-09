@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../providers/map_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/entities/entities.dart';
@@ -13,7 +14,9 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  GoogleMapController? _mapCtrl;
+  final MapController _mapCtrl = MapController();
+
+  static const _initialZoom = 14.5;
 
   @override
   Widget build(BuildContext context) {
@@ -24,14 +27,17 @@ class _MapScreenState extends State<MapScreen> {
         title: const Text('Mapa SmartCare'),
         actions: [
           IconButton(
+            tooltip: 'Buscar atendimento nesta área',
+            icon: const Icon(Icons.refresh),
+            onPressed: p.isLoading ? null : p.retrySearch,
+          ),
+          IconButton(
+            tooltip: 'Centralizar na minha posição',
             icon: const Icon(Icons.my_location),
-            onPressed: () {
-              _mapCtrl?.animateCamera(
-                CameraUpdate.newLatLng(
-                  LatLng(p.centerLat, p.centerLng),
-                ),
-              );
-            },
+            onPressed: () => _mapCtrl.move(
+              LatLng(p.centerLat, p.centerLng),
+              _initialZoom,
+            ),
           ),
         ],
       ),
@@ -39,17 +45,23 @@ class _MapScreenState extends State<MapScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
-                GoogleMap(
-                  onMapCreated: (ctrl) => _mapCtrl = ctrl,
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(p.centerLat, p.centerLng),
-                    zoom: 14.5,
+                FlutterMap(
+                  mapController: _mapCtrl,
+                  options: MapOptions(
+                    initialCenter: LatLng(p.centerLat, p.centerLng),
+                    initialZoom: _initialZoom,
+                    onTap: (_, __) => p.selectDevice(null),
                   ),
-                  markers: _buildMarkers(p),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
-                  mapType: MapType.normal,
-                  onTap: (_) => p.selectDevice(null),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      // Exigido pela politica de uso dos tiles do OpenStreetMap.
+                      userAgentPackageName: 'com.smarthas.smartcare_flutter',
+                    ),
+                    MarkerLayer(markers: _buildMarkers(p)),
+                    const _OsmAttribution(),
+                  ],
                 ),
                 // Device info card
                 if (p.selectedDevice != null)
@@ -66,32 +78,79 @@ class _MapScreenState extends State<MapScreen> {
                   right: 12,
                   child: _MapLegend(),
                 ),
+                // A busca depende de rede: sem ela o mapa fica sem marcadores,
+                // entao o motivo e a acao de repetir precisam ficar visiveis.
+                if (p.searchFailure != null)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    right: 96,
+                    child: _SearchFailureBanner(
+                      message: p.searchFailure!.message,
+                      onRetry: p.retrySearch,
+                    ),
+                  ),
               ],
             ),
     );
   }
 
-  Set<Marker> _buildMarkers(MapProvider p) {
+  List<Marker> _buildMarkers(MapProvider p) {
     return p.devices.map((device) {
-      final hue = switch (device.type) {
-        DeviceType.sensor   => BitmapDescriptor.hueGreen,
-        DeviceType.camera   => BitmapDescriptor.hueBlue,
-        DeviceType.pharmacy => BitmapDescriptor.hueOrange,
-        DeviceType.hospital => BitmapDescriptor.hueRed,
-        DeviceType.user     => BitmapDescriptor.hueCyan,
+      final color = switch (device.type) {
+        DeviceType.pharmacy => Colors.orange,
+        DeviceType.hospital => Colors.red,
+        DeviceType.user     => Colors.cyan,
       };
 
       return Marker(
-        markerId: MarkerId(device.id),
-        position: LatLng(device.lat, device.lng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-        infoWindow: InfoWindow(
-          title: device.name,
-          snippet: device.status,
+        key: ValueKey(device.id),
+        point: LatLng(device.lat, device.lng),
+        width: 36,
+        height: 36,
+        child: Tooltip(
+          message: device.status == null
+              ? device.name
+              : '${device.name} - ${device.status}',
+          child: GestureDetector(
+            onTap: () => p.selectDevice(device),
+            child: Icon(
+              Icons.location_on,
+              color: color,
+              size: 36,
+              shadows: const [
+                Shadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
+              ],
+            ),
+          ),
         ),
-        onTap: () => p.selectDevice(device),
       );
-    }).toSet();
+    }).toList();
+  }
+}
+
+/// Credito ao OpenStreetMap — obrigatorio pela licenca ODbL dos dados.
+class _OsmAttribution extends StatelessWidget {
+  const _OsmAttribution();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+        padding: EdgeInsets.all(4),
+        child: ColoredBox(
+          color: Color(0xCCFFFFFF),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: Text(
+              '© OpenStreetMap contributors',
+              style: TextStyle(fontSize: 10, color: Colors.black87),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -103,8 +162,6 @@ class _DeviceInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, color) = switch (device.type) {
-      DeviceType.sensor   => ('🌡️', SmartCareTheme.primaryGreen),
-      DeviceType.camera   => ('📷', SmartCareTheme.accentBlue),
       DeviceType.pharmacy => ('💊', SmartCareTheme.warnAmber),
       DeviceType.hospital => ('🏥', SmartCareTheme.dangerRed),
       DeviceType.user     => ('👤', Colors.purple),
@@ -170,6 +227,37 @@ class _DeviceInfoCard extends StatelessWidget {
   }
 }
 
+class _SearchFailureBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _SearchFailureBanner({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      elevation: 2,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off, size: 18, color: Colors.black54),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Não foi possível buscar atendimento por perto. $message',
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Tentar de novo')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MapLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -186,8 +274,6 @@ class _MapLegend extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _LegendItem(color: Colors.green, label: 'Sensor'),
-          _LegendItem(color: Colors.blue, label: 'Câmera'),
           _LegendItem(color: Colors.orange, label: 'Farmácia'),
           _LegendItem(color: Colors.red, label: 'Hospital'),
         ],

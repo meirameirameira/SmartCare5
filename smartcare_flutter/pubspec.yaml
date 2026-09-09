@@ -21,8 +21,9 @@ dependencies:
   firebase_messaging: ^14.8.2
   flutter_local_notifications: ^17.1.1
 
-  # Google Maps
-  google_maps_flutter: ^2.6.0
+  # Mapa (OpenStreetMap via flutter_map — sem chave de API e sem faturamento)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
   geolocator: ^11.0.0
   permission_handler: ^11.3.0
 

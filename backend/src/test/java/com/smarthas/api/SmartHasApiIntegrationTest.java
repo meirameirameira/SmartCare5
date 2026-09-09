@@ -367,6 +367,45 @@ class SmartHasApiIntegrationTest {
     }
 
     @Test
+    @DisplayName("URL inexistente responde 404 no mesmo envelope de erro")
+    void unknownRouteReturnsNotFound() throws Exception {
+        mockMvc.perform(get("/api/v1/rota-inexistente")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Recurso nao encontrado"))
+                .andExpect(jsonPath("$.path").value("/api/v1/rota-inexistente"));
+    }
+
+    @Test
+    @DisplayName("metodo HTTP nao suportado responde 405")
+    void unsupportedMethodReturnsMethodNotAllowed() throws Exception {
+        mockMvc.perform(patch("/api/v1/doctors")
+                        .header("Authorization", "Bearer " + adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405));
+    }
+
+    @Test
+    @DisplayName("a carga de demonstracao abre o painel com alertas reais")
+    void demoDataProvidesOpenAlerts() throws Exception {
+        String overview = mockMvc.perform(get("/api/v1/analytics/overview")
+                        .header("Authorization", "Bearer " + adminToken()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode json = objectMapper.readTree(overview);
+        // Alertas gerados pelo motor de regras a partir da leitura alterada do
+        // paciente de demonstracao - o painel nunca abre zerado na banca.
+        assertThat(json.get("openAlerts").asInt()).isPositive();
+        assertThat(json.get("urgentAlerts").asInt()).isPositive();
+        assertThat(json.get("deliveriesInTransit").asInt()).isPositive();
+        assertThat(json.get("upcomingAppointments").asInt()).isPositive();
+    }
+
+    @Test
     @DisplayName("documentacao OpenAPI e publicada")
     void openApiIsPublished() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))

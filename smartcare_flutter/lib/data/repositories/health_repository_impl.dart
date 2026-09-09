@@ -7,7 +7,6 @@ import '../../domain/entities/entities.dart';
 import '../../domain/repositories/repositories.dart';
 import '../datasources/patient_datasource.dart';
 import '../datasources/remote/vitals_remote_datasource.dart';
-import '../datasources/remote/weather_remote_datasource.dart';
 
 /// Implementação **offline-first** do repositório de saúde.
 ///
@@ -20,18 +19,15 @@ import '../datasources/remote/weather_remote_datasource.dart';
 class HealthRepositoryImpl implements HealthRepository {
   HealthRepositoryImpl({
     required VitalsDataSource vitals,
-    required WeatherRemoteDataSource weather,
     required LocalCache cache,
     PatientDataSource patient = const DemoPatientDataSource(),
     this.cacheTtl = const Duration(minutes: 10),
   })  : _vitals = vitals,
-        _weather = weather,
         _cache = cache,
         _patient = patient;
 
   final VitalsDataSource _vitals;
   final PatientDataSource _patient;
-  final WeatherRemoteDataSource _weather;
   final LocalCache _cache;
 
   /// Janela em que o cache é considerado fresco o bastante para ser servido
@@ -49,21 +45,6 @@ class HealthRepositoryImpl implements HealthRepository {
         encode: (v) => v.toJson(),
         decode: VitalReading.fromJson,
       );
-
-  @override
-  Future<Result<Sourced<String>>> loadWeather() async {
-    final result = await _remoteFirst<WeatherSnapshot>(
-      key: CacheKeys.weather,
-      fetch: _weather.fetch,
-      encode: (w) => w.toJson(),
-      decode: WeatherSnapshot.fromJson,
-    );
-    return result.map((sourced) => Sourced(
-          sourced.value.summary,
-          fromCache: sourced.fromCache,
-          updatedAt: sourced.updatedAt,
-        ));
-  }
 
   /// Núcleo da estratégia rede-com-fallback-de-cache, compartilhado por todas
   /// as leituras (evita repetir try/catch em cada método).

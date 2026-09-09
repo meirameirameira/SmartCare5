@@ -26,24 +26,45 @@ cd SmartCare5/smartcare_flutter
 
 ---
 
-## 2. Configurar chaves de API (obrigatório)
+## 2. Configurar chaves de API (opcional)
 
-Crie o arquivo `android/local.properties` com o seguinte conteúdo (o arquivo **não é commitado** por segurança):
+O mapa usa **OpenStreetMap** através do pacote `flutter_map`. Não exige chave de API,
+conta no Google Cloud nem faturamento — funciona assim que o app sobe.
 
-```properties
-sdk.dir=C:\\Users\\SEU_USUARIO\\AppData\\Local\\Android\\sdk
-flutter.sdk=C:\\Users\\SEU_USUARIO\\develop\\flutter
+As demais chaves ficam num arquivo `.env` na raiz de `smartcare_flutter/`, que **não é commitado**:
 
-# Google Maps — obtenha em console.cloud.google.com
-GOOGLE_MAPS_API_KEY=SUA_CHAVE_MAPS_AQUI
-
-# Gemini AI — obtenha em aistudio.google.com/apikey
-GEMINI_API_KEY=SUA_CHAVE_GEMINI_AQUI
+```bash
+cp .env.example .env
 ```
 
-> **Nota:** Ajuste os caminhos `sdk.dir` e `flutter.sdk` para o seu ambiente.  
-> Sem `GEMINI_API_KEY`, o assistente de IA opera em modo fallback com respostas pré-definidas.  
-> Sem `GOOGLE_MAPS_API_KEY`, o mapa exibe o aviso `InvalidKey` mas o app continua funcional.
+```properties
+# Gemini AI - obtenha em aistudio.google.com/apikey
+GEMINI_API_KEY=SUA_CHAVE_GEMINI_AQUI
+
+# Back-end Smart HAS. Deixe vazio para rodar em modo demonstracao.
+SMARTHAS_API_URL=
+SMARTHAS_EMAIL=
+SMARTHAS_PASSWORD=
+```
+
+Converta o `.env` para o formato que o Flutter consome:
+
+```bash
+dart run tool/gen_env.dart
+```
+
+Isso gera `dart_defines.json`, também fora do git, usado nos comandos da seção 4.
+Rode o comando de novo sempre que alterar o `.env`.
+
+O `android/local.properties` continua guardando apenas os caminhos do seu ambiente:
+
+```properties
+sdk.dir=C:\Users\SEU_USUARIO\AppData\Local\Android\sdk
+flutter.sdk=C:\Users\SEU_USUARIO\develop\flutter
+```
+
+> **Nota:** Sem `GEMINI_API_KEY`, o assistente de IA opera em modo fallback com respostas pré-definidas.
+> Sem `SMARTHAS_API_URL`, o app roda em modo demonstração.
 
 ---
 
@@ -60,22 +81,22 @@ flutter pub get
 ### Android (emulador ou dispositivo físico)
 
 ```bash
-flutter run
+flutter run --dart-define-from-file=dart_defines.json
 ```
 
 Para selecionar um dispositivo específico:
 ```bash
 flutter devices          # lista os dispositivos disponíveis
-flutter run -d <device_id>
+flutter run -d <device_id> --dart-define-from-file=dart_defines.json
 ```
 
 ### Web (Chrome) — sem necessidade de Android SDK
 
 ```bash
-flutter run -d chrome --dart-define=GEMINI_API_KEY=SUA_CHAVE_AQUI
+flutter run -d chrome --dart-define-from-file=dart_defines.json
 ```
 
-> No modo web, a chave Gemini deve ser passada via `--dart-define` pois o `local.properties` só é lido em builds Android.
+> O mesmo `dart_defines.json` serve para web e Android. Sem ele, o app sobe em modo demonstração.
 
 ### Build Android APK
 
@@ -125,7 +146,7 @@ smartcare_flutter/
 │   │       ├── health_score_engine.dart  # score 0–100 por faixas clínicas
 │   │       └── alert_engine.dart         # alertas dinâmicos + agenda de medicação
 │   ├── data/
-│   │   ├── datasources/remote/      # Open-Meteo, gateway IoT/wearable, Gemini
+│   │   ├── datasources/remote/      # Overpass/OSM, gateway IoT/wearable, Gemini
 │   │   ├── datasources/local/       # base de conhecimento offline, catálogo demo
 │   │   └── repositories/            # implementações dos contratos de domínio
 │   └── presentation/
@@ -137,19 +158,19 @@ smartcare_flutter/
 ├── android/
 │   ├── local.properties             # ⚠️ NÃO commitado — criar manualmente
 │   └── app/
-│       ├── build.gradle             # injeção da Maps API key
+│       ├── build.gradle             # configuração do build Android
 │       └── google-services.json     # ⚠️ NÃO commitado — baixar do Firebase
 └── web/
-    └── index.html                   # Maps JS API
+    └── index.html
 ```
 
-### Variáveis de compilação (`--dart-define`)
+### Variáveis de compilação (`--dart-define-from-file=dart_defines.json`)
 
 | Variável | Sem ela | Com ela |
 |---|---|---|
 | `GEMINI_API_KEY` | Assistente usa a base de conhecimento local, já contextualizada com os vitais atuais | Respostas geradas pelo Gemini 2.0 Flash |
-| `SMARTCARE_API_URL` | Sinais vitais vêm do simulador de wearable | Leituras vêm do gateway IoT REST |
-| `GOOGLE_MAPS_API_KEY` | Mapa carrega com aviso `InvalidKey` | Mapa completo |
+| `SMARTHAS_API_URL` | Sinais vitais vêm do simulador de wearable | Paciente e leituras vêm da API Spring Boot |
+| `SMARTHAS_EMAIL` / `SMARTHAS_PASSWORD` | — | Credenciais usadas no login JWT contra a API |
 
 ---
 
@@ -167,7 +188,9 @@ smartcare_flutter/
   resposta usa os valores medidos no instante da pergunta. Histórico persistido entre sessões.
 - **Analytics** — séries de 7/14/30 dias terminando na medição real mais recente, com insights derivados do
   score.
-- **Mapa IoT** — dispositivos do paciente, farmácia e hospitais de referência sobre o Google Maps.
+- **Mapa de atendimento** — farmácias e hospitais reais em volta da posição do paciente, buscados na hora
+  na Overpass API do OpenStreetMap. Acompanha o usuário para qualquer cidade, sem chave de API nem
+  faturamento. Sem rede, a tela avisa e oferece nova tentativa.
 - **Entregas & Home Care** — rastreio do pedido de medicamentos e próxima visita domiciliar.
 - **Preferências** — tema claro/escuro/automático, escala de texto de 90% a 130% (acessibilidade) e
   controle de notificações, tudo persistido no dispositivo.
@@ -178,7 +201,7 @@ smartcare_flutter/
 
 ```bash
 flutter analyze   # No issues found!
-flutter test      # All tests passed! (45)
+flutter test      # All tests passed! (65)
 ```
 
 ---
@@ -188,6 +211,5 @@ flutter test      # All tests passed! (45)
 | Situação | Comportamento |
 |---|---|
 | `GEMINI_API_KEY` ausente ou com quota zerada | Assistente usa fallback por palavras-chave |
-| `GOOGLE_MAPS_API_KEY` ausente | Mapa carrega com aviso `InvalidKey` |
-| `SMARTCARE_API_URL` ausente | Vitais vêm do simulador determinístico de wearable |
+| `SMARTHAS_API_URL` ausente | Vitais vêm do simulador determinístico de wearable |
 | Firebase não configurado | App inicializa normalmente sem push |

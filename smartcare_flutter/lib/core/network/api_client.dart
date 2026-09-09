@@ -119,6 +119,33 @@ class ApiClient {
     });
   }
 
+  /// PATCH com corpo JSON.
+  Future<T> patchJson<T>(
+    String url, {
+    required Map<String, dynamic> body,
+    required T Function(Map<String, dynamic> json) decode,
+    Map<String, dynamic>? query,
+    Map<String, String>? headers,
+  }) async {
+    return _withRetry(() async {
+      final response = await _dio.patch<dynamic>(
+        url,
+        data: body,
+        queryParameters: query,
+        options: Options(headers: {'Content-Type': 'application/json', ...?headers}),
+      );
+      final status = response.statusCode ?? 0;
+      if (status < 200 || status >= 300) {
+        throw ServerFailure(status);
+      }
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw const ServerFailure(200, detail: 'Resposta em formato inesperado.');
+      }
+      return decode(data);
+    });
+  }
+
   /// Executa [action] repetindo em falhas transitórias com backoff exponencial
   /// (300ms, 600ms, 1200ms...). Falhas definitivas (4xx) não são repetidas.
   Future<T> _withRetry<T>(Future<T> Function() action) async {

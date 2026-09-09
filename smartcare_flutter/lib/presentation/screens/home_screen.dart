@@ -72,10 +72,6 @@ class _TopBar extends StatelessWidget {
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600)),
-                if (provider.weatherInfo != null)
-                  Text(provider.weatherInfo!,
-                      style:
-                          const TextStyle(color: Colors.white70, fontSize: 11)),
               ],
             ),
           ),

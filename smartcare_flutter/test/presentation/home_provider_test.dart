@@ -71,13 +71,6 @@ void main() {
     expect(provider.healthScore!.trend, TrendDirection.down);
   });
 
-  test('o clima é carregado sem bloquear o dashboard', () async {
-    await provider.refresh();
-    await Future<void>.delayed(Duration.zero);
-
-    expect(provider.weatherInfo, contains('°C'));
-  });
-
   test('polling pode ser iniciado e interrompido', () {
     expect(provider.isPolling, isFalse);
     provider.startPolling();

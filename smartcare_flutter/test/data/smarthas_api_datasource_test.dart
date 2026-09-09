@@ -23,6 +23,9 @@ class _FakeSmartHasServer {
 
   int loginCount = 0;
 
+  /// Status recebidos em PATCH /deliveries/{id}/status.
+  final List<String> statusPatches = [];
+
   String get baseUrl => 'http://${_server.address.host}:${_server.port}';
 
   Future<void> start() async {
@@ -95,6 +98,56 @@ class _FakeSmartHasServer {
           'createdAt': '2026-08-30T12:34:00Z',
         },
       ]);
+    }
+
+    if (path == '/api/v1/patients/7/deliveries') {
+      return _jsonList(request, 200, [
+        {
+          'id': 1,
+          'orderCode': 'SC-2026-0412',
+          'patientId': 7,
+          'description': 'Metformina 500mg (60cp)',
+          'pharmacyName': 'Farmacia Leroy Health',
+          'status': 'IN_TRANSIT',
+          'currentStep': 2,
+          'distanceKm': 3.2,
+          'etaMinutes': 28,
+          'proactiveMessage': 'IA detectou transito - rota alternativa ativa.',
+          'updatedAt': '2026-09-01T10:00:00Z',
+        },
+        {
+          'id': 2,
+          'orderCode': 'SC-2026-0388',
+          'patientId': 7,
+          'description': 'Insulina NPH',
+          'pharmacyName': 'Drogaria Central',
+          'status': 'DELIVERED',
+          'currentStep': 3,
+          'distanceKm': 1.8,
+          'etaMinutes': 0,
+          'proactiveMessage': null,
+          'updatedAt': '2026-09-02T10:00:00Z',
+        },
+      ]);
+    }
+
+    if (path == '/api/v1/deliveries/1/status') {
+      final body = jsonDecode(await utf8.decoder.bind(request).join())
+          as Map<String, dynamic>;
+      statusPatches.add(body['status'] as String);
+      return _json(request, 200, {
+        'id': 1,
+        'orderCode': 'SC-2026-0412',
+        'patientId': 7,
+        'description': 'Metformina 500mg (60cp)',
+        'pharmacyName': 'Farmacia Leroy Health',
+        'status': body['status'],
+        'currentStep': 3,
+        'distanceKm': 3.2,
+        'etaMinutes': 0,
+        'proactiveMessage': 'Entrega confirmada pelo paciente.',
+        'updatedAt': '2026-09-02T12:00:00Z',
+      });
     }
 
     return _json(request, 404, {'message': 'Rota inexistente'});
@@ -213,6 +266,31 @@ void main() {
     expect(alerts, hasLength(1));
     expect(alerts.first.type, AlertType.urgent);
     expect(alerts.first.title, contains('SpO2'));
+  });
+
+  test('pedidos da AI Logistics vem da API com a trilha e a mensagem da IA',
+      () async {
+    await session.login(email: 'felipe@smarthas.com', password: 'paciente123');
+    final pedidos = await api.fetchDeliveries();
+
+    expect(pedidos, hasLength(2));
+    expect(pedidos.first.orderCode, 'SC-2026-0412');
+    expect(pedidos.first.status, DeliveryStatus.inTransit);
+    expect(pedidos.first.currentStep, 2);
+    expect(pedidos.first.minutesAway, 28);
+    expect(pedidos.first.proactiveMessage, contains('rota alternativa'));
+    // A API guarda minutos; a tela mostra uma janela de horario.
+    expect(pedidos.first.etaFrom, matches(r'^\d{2}h\d{2}$'));
+  });
+
+  test('confirmar recebimento envia PATCH com o status DELIVERED', () async {
+    await session.login(email: 'felipe@smarthas.com', password: 'paciente123');
+    final atualizado =
+        await api.changeDeliveryStatus('1', DeliveryStatus.delivered);
+
+    expect(server.statusPatches, ['DELIVERED']);
+    expect(atualizado.status, DeliveryStatus.delivered);
+    expect(atualizado.currentStep, 3);
   });
 
   test('credenciais invalidas nao autenticam a sessao', () async {

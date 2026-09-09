@@ -24,7 +24,6 @@ class FakeHealthRepository implements HealthRepository {
   VitalReading reading;
   AppFailure? failure;
   bool fromCache = false;
-  String? weather = '☀️ Céu limpo · 24°C · Umidade 55%';
 
   @override
   Future<Result<Patient>> loadPatient() async => const Ok(DemoCatalog.patient);
@@ -35,9 +34,4 @@ class FakeHealthRepository implements HealthRepository {
     return Ok(Sourced(reading, fromCache: fromCache, updatedAt: DateTime.now()));
   }
 
-  @override
-  Future<Result<Sourced<String>>> loadWeather() async {
-    if (weather == null) return const Err(NetworkFailure());
-    return Ok(Sourced(weather!, updatedAt: DateTime.now()));
-  }
 }

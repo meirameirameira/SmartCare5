@@ -14,10 +14,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Tratamento central de erros da API.
@@ -106,6 +108,30 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(envelope(HttpStatus.CONFLICT, "Conflito de dados",
                         "O registro viola uma restricao de unicidade ou integridade.", request));
+    }
+
+    /**
+     * URL que nao corresponde a nenhum endpoint.
+     *
+     * <p>Sem este tratamento a {@code NoResourceFoundException} do Spring cairia
+     * na rede de seguranca abaixo e um simples erro de digitacao na URL
+     * responderia 500 em vez de 404.</p>
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException ex,
+                                                                HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(envelope(HttpStatus.NOT_FOUND, "Recurso nao encontrado",
+                        "Nao existe endpoint para este caminho.", request));
+    }
+
+    /** Endpoint existe, mas nao aceita o metodo HTTP usado. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
+                                                                        HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(envelope(HttpStatus.METHOD_NOT_ALLOWED, "Metodo nao permitido",
+                        "O metodo " + ex.getMethod() + " nao e aceito neste endpoint.", request));
     }
 
     /** Rede de seguranca: nada de stack trace vazando para o cliente. */

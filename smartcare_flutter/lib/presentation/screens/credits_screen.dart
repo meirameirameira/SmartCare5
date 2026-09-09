@@ -122,7 +122,7 @@ class CreditsScreen extends StatelessWidget {
                     spacing: 8, runSpacing: 8,
                     children: const [
                       'Flutter 3.x', 'Dart', 'Provider', 'Firebase FCM',
-                      'Google Maps', 'Open-Meteo API', 'HTTP/REST',
+                      'OpenStreetMap', 'HTTP/REST',
                       'MVVM-like', 'Material Design 3',
                     ].map((tag) => Container(
                       padding: const EdgeInsets.symmetric(
