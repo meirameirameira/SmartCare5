@@ -1,0 +1,101 @@
+<div class="conteudo">
+  <div class="topo">
+    <div>
+      <h1 class="titulo-pagina">Relatorio clinico consolidado</h1>
+      <p class="subtitulo">
+        Score, medias, glicemia na faixa, alertas e consumo de medicamentos por paciente
+      </p>
+    </div>
+
+    <div class="controles">
+      <label>
+        Periodo
+        <select name="periodo" [(ngModel)]="periodo">
+          <option *ngFor="let dias of periodos" [ngValue]="dias">{{ dias }} dias</option>
+        </select>
+      </label>
+      <button type="button" (click)="consolidar()" [disabled]="carregando">
+        {{ carregando ? 'Consolidando...' : 'Consolidar agora' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="faixa erro" *ngIf="erro">
+    <span>{{ erro }}</span>
+    <button type="button" (click)="consolidar()">Tentar novamente</button>
+  </div>
+
+  <p class="carregando" *ngIf="carregando && !consolidacao">
+    Executando a consolidacao no banco...
+  </p>
+
+  <ng-container *ngIf="consolidacao">
+    <div class="faixa sucesso">
+      <span>
+        <b>{{ consolidacao.processed }}</b> paciente(s) consolidado(s) em
+        {{ consolidacao.periodDays }} dias · motor: <b>{{ motor }}</b>
+      </span>
+    </div>
+
+    <section class="grade-cartoes">
+      <article class="cartao indicador">
+        <span class="rotulo">Pacientes</span>
+        <strong class="valor">{{ consolidacao.reports.length }}</strong>
+      </article>
+      <article class="cartao indicador" [class.atencao]="emRisco > 0">
+        <span class="rotulo">Em risco</span>
+        <strong class="valor">{{ emRisco }}</strong>
+        <small>score abaixo de 60 ou alerta urgente</small>
+      </article>
+    </section>
+
+    <h2 class="rotulo-secao">Pacientes (menor score primeiro) · clique para ver o resumo</h2>
+    <section class="cartao">
+      <table>
+        <thead>
+          <tr>
+            <th>Paciente</th>
+            <th>Score</th>
+            <th>Media</th>
+            <th>Glicemia na faixa</th>
+            <th>Alertas</th>
+            <th>Pedidos</th>
+            <th>Leituras</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let r of consolidacao.reports"
+            (click)="selecionado = r"
+            [class.ativo]="selecionado?.patientId === r.patientId"
+          >
+            <td><strong>{{ r.patientName }}</strong></td>
+            <td>
+              <span class="etiqueta" [ngClass]="classeNivel(r)">
+                {{ r.latestScore ?? '--' }} · {{ r.riskLevel }}
+              </span>
+            </td>
+            <td>{{ r.averageScore !== null ? (r.averageScore | number: '1.1-1') : '--' }}</td>
+            <td>
+              {{ r.glucoseTimeInRange !== null ? (r.glucoseTimeInRange | number: '1.1-1') + '%' : '--' }}
+            </td>
+            <td>
+              {{ r.openAlerts }}
+              <small class="urgente" *ngIf="r.urgentAlerts > 0">{{ r.urgentAlerts }} urgente(s)</small>
+            </td>
+            <td>{{ r.deliveriesDelivered }}/{{ r.deliveriesTotal }}</td>
+            <td>{{ r.readings }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <ng-container *ngIf="selecionado as r">
+      <h2 class="rotulo-secao">Resumo formatado · {{ r.patientName }}</h2>
+      <section class="cartao resumo">
+        <p *ngFor="let linha of linhasResumo(r)">{{ linha }}</p>
+        <small>Gerado em {{ r.generatedAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+      </section>
+    </ng-container>
+  </ng-container>
+</div>

@@ -45,6 +45,13 @@ abstract interface class AnalyticsRepository {
   Future<Result<List<AiInsight>>> loadInsights(int periodDays);
 }
 
+/// Relatório clínico consolidado (score, médias, tempo na faixa, alertas e
+/// consumo de medicamentos). Offline-first: sem rede, devolve o último
+/// relatório do mesmo período marcado como cache.
+abstract interface class ReportRepository {
+  Future<Result<Sourced<ClinicalReport>>> loadReport(int periodDays);
+}
+
 abstract interface class ChatRepository {
   /// Envia a pergunta ao assistente (Gemini ou fallback local).
   Future<Result<String>> ask(String question, {VitalReading? context});

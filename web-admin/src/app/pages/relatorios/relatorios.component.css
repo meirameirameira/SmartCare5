@@ -1,0 +1,39 @@
+.topo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.controles { display: flex; align-items: flex-end; gap: 10px; }
+
+.controles label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.controles select { min-width: 120px; }
+
+tbody tr { cursor: pointer; }
+tbody tr:hover td,
+tbody tr.ativo td { background: var(--fundo); }
+
+.urgente {
+  display: block;
+  font-size: 11px;
+  color: var(--vermelho);
+}
+
+.indicador.atencao .valor { color: var(--vermelho); }
+
+.resumo p { margin: 0 0 6px; font-size: 14px; }
+.resumo small { color: var(--texto-suave); font-size: 12px; }
+
+@media (max-width: 820px) {
+  .topo { flex-direction: column; align-items: stretch; }
+  section.cartao { overflow-x: auto; }
+}

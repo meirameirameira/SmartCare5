@@ -160,6 +160,25 @@ class SmartHasApiSession {
   }
 }
 
+/// Série de uma métrica como devolvida por `GET /analytics/patients/{id}`.
+class ServerMetric {
+  const ServerMetric({
+    required this.label,
+    required this.unit,
+    required this.currentValue,
+    required this.trend,
+    required this.trendUp,
+    required this.values,
+  });
+
+  final String label;
+  final String unit;
+  final String currentValue;
+  final String trend;
+  final bool trendUp;
+  final List<double> values;
+}
+
 /// Endpoints da API consumidos pelo app.
 class SmartHasApiDataSource {
   SmartHasApiDataSource(this.session);
@@ -227,6 +246,89 @@ class SmartHasApiDataSource {
       body: {'status': _statusToApi(status)},
       decode: deliveryFromJson,
     );
+  }
+
+  /// Relatório clínico consolidado do período.
+  ///
+  /// No servidor com perfil `oracle`, a chamada aciona a procedure
+  /// `PRC_CONSOLIDAR_RELATORIO` (REST -> Java -> JDBC -> Oracle) e devolve o
+  /// snapshot gravado em `PATIENT_REPORT`.
+  Future<ClinicalReport> fetchReport(int periodDays) async {
+    final id = await ensurePatientId();
+    return session.get(
+      '/api/v1/patients/$id/report?periodDays=$periodDays',
+      decode: reportFromJson,
+    );
+  }
+
+  /// Séries e insights calculados no servidor a partir das leituras reais.
+  Future<({List<ServerMetric> metrics, List<AiInsight> insights})> fetchAnalytics(
+      int periodDays) async {
+    final id = await ensurePatientId();
+    return session.get(
+      '/api/v1/analytics/patients/$id?periodDays=$periodDays',
+      decode: analyticsFromJson,
+    );
+  }
+
+  @visibleForTesting
+  static ClinicalReport reportFromJson(Map<String, dynamic> json) {
+    final averages = (json['averages'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return ClinicalReport(
+      patientName: json['patientName'] as String? ?? '',
+      periodDays: (json['periodDays'] as num).toInt(),
+      generatedAt:
+          DateTime.tryParse(json['generatedAt'] as String? ?? '')?.toLocal() ??
+              DateTime.now(),
+      readings: (json['readings'] as num?)?.toInt() ?? 0,
+      averages: VitalAverages.fromJson(averages),
+      latestScore: (json['latestScore'] as num?)?.toInt(),
+      averageScore: (json['averageScore'] as num?)?.toDouble(),
+      riskLevel: json['riskLevel'] as String? ?? 'SEM DADOS',
+      glucoseTimeInRange: (json['glucoseTimeInRange'] as num?)?.toDouble(),
+      openAlerts: (json['openAlerts'] as num?)?.toInt() ?? 0,
+      urgentAlerts: (json['urgentAlerts'] as num?)?.toInt() ?? 0,
+      alertsInPeriod: (json['alertsInPeriod'] as num?)?.toInt() ?? 0,
+      deliveriesTotal: (json['deliveriesTotal'] as num?)?.toInt() ?? 0,
+      deliveriesDelivered: (json['deliveriesDelivered'] as num?)?.toInt() ?? 0,
+      summary: json['summary'] as String? ?? '',
+      engine: json['engine'] == 'ORACLE_PLSQL'
+          ? ReportEngine.oraclePlsql
+          : ReportEngine.server,
+    );
+  }
+
+  @visibleForTesting
+  static ({List<ServerMetric> metrics, List<AiInsight> insights}) analyticsFromJson(
+      Map<String, dynamic> json) {
+    final metrics = ((json['metrics'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .map((m) => ServerMetric(
+              label: m['label'] as String,
+              unit: m['unit'] as String? ?? '',
+              currentValue: m['currentValue'] as String? ?? '--',
+              trend: m['trend'] as String? ?? '',
+              trendUp: m['trendUp'] as bool? ?? true,
+              values: ((m['values'] as List?) ?? const [])
+                  .map((v) => (v as num).toDouble())
+                  .toList(growable: false),
+            ))
+        .toList(growable: false);
+
+    final insights = ((json['insights'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .map((i) => AiInsight(
+              title: i['title'] as String,
+              description: i['description'] as String? ?? '',
+              severity: switch (i['severity'] as String? ?? 'INFO') {
+                'CRITICAL' => InsightSeverity.critical,
+                'WARNING' => InsightSeverity.warning,
+                _ => InsightSeverity.info,
+              },
+            ))
+        .toList(growable: false);
+
+    return (metrics: metrics, insights: insights);
   }
 
   static String _statusToApi(DeliveryStatus status) => switch (status) {

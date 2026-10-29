@@ -43,8 +43,10 @@ dependencies {
     // Observabilidade
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
-    // Bancos de dados: H2 em desenvolvimento, PostgreSQL em producao
+    // Bancos de dados: H2 em desenvolvimento, Oracle (perfil "oracle", com as
+    // rotinas PL/SQL de database/oracle) e PostgreSQL em producao
     runtimeOnly("com.h2database:h2")
+    runtimeOnly("com.oracle.database.jdbc:ojdbc11")
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

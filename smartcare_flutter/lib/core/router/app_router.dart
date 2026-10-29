@@ -8,6 +8,7 @@ import '../../presentation/screens/credits_screen.dart';
 import '../../presentation/screens/delivery_screen.dart';
 import '../../presentation/screens/home_screen.dart';
 import '../../presentation/screens/map_screen.dart';
+import '../../presentation/screens/report_screen.dart';
 import '../../presentation/screens/settings_screen.dart';
 import '../../presentation/screens/shell_screen.dart';
 
@@ -24,6 +25,7 @@ abstract final class Routes {
   static const map = '/map';
   static const credits = '/credits';
   static const settings = '/settings';
+  static const report = '/report';
 }
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -55,6 +57,11 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       path: Routes.settings,
       builder: (c, s) => const SettingsScreen(),
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: Routes.report,
+      builder: (c, s) => const ReportScreen(),
     ),
   ],
   // Rota inexistente não pode derrubar o app: mostra uma tela de recuperação.

@@ -3,6 +3,7 @@ package com.smarthas.api.service;
 import com.smarthas.api.domain.Patient;
 import com.smarthas.api.domain.VitalReading;
 import com.smarthas.api.repository.VitalReadingRepository;
+import com.smarthas.api.routines.ClinicalRoutines;
 import com.smarthas.api.security.AppUserPrincipal;
 import com.smarthas.api.web.dto.VitalDtos;
 import com.smarthas.api.web.error.BusinessRuleException;
@@ -21,14 +22,14 @@ public class VitalService {
 
     private final VitalReadingRepository readings;
     private final PatientService patientService;
-    private final AlertService alertService;
+    private final ClinicalRoutines clinicalRoutines;
     private final HealthScoreCalculator scoreCalculator;
 
     public VitalService(VitalReadingRepository readings, PatientService patientService,
-                        AlertService alertService, HealthScoreCalculator scoreCalculator) {
+                        ClinicalRoutines clinicalRoutines, HealthScoreCalculator scoreCalculator) {
         this.readings = readings;
         this.patientService = patientService;
-        this.alertService = alertService;
+        this.clinicalRoutines = clinicalRoutines;
         this.scoreCalculator = scoreCalculator;
     }
 
@@ -36,7 +37,10 @@ public class VitalService {
      * Registra uma leitura do wearable e dispara a geracao de alertas.
      *
      * <p>Tudo em uma unica transacao: ou a leitura e os alertas derivados sao
-     * gravados juntos, ou nada e gravado.</p>
+     * gravados juntos, ou nada e gravado. Com o perfil {@code oracle}, os
+     * alertas sao gerados pela procedure {@code PRC_REGISTRAR_ALERTAS_LEITURA};
+     * o {@code saveAndFlush} garante que a leitura ja esteja no banco quando a
+     * procedure for executada.</p>
      */
     @Transactional
     public VitalDtos.VitalResponse record(Long patientId, VitalDtos.VitalRequest request,
@@ -48,7 +52,7 @@ public class VitalService {
             throw new BusinessRuleException("A data da medicao nao pode estar no futuro.");
         }
 
-        VitalReading reading = readings.save(new VitalReading(
+        VitalReading reading = readings.saveAndFlush(new VitalReading(
                 patient,
                 request.heartRate(),
                 request.spO2(),
@@ -58,7 +62,7 @@ public class VitalService {
                 request.temperature(),
                 measuredAt));
 
-        alertService.generateFrom(reading);
+        clinicalRoutines.generateAlerts(reading);
 
         return VitalDtos.VitalResponse.from(reading);
     }

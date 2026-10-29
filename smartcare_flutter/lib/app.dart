@@ -11,6 +11,7 @@ import 'presentation/providers/consulta_provider.dart';
 import 'presentation/providers/delivery_provider.dart';
 import 'presentation/providers/home_provider.dart';
 import 'presentation/providers/map_provider.dart';
+import 'presentation/providers/report_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 
 /// Raiz do aplicativo.
@@ -35,6 +36,7 @@ class SmartCareApp extends StatelessWidget {
         ChangeNotifierProvider(
             create: (_) => AnalyticsProvider(injector.analytics)),
         ChangeNotifierProvider(create: (_) => MapProvider(injector.devices)),
+        ChangeNotifierProvider(create: (_) => ReportProvider(injector.report)),
 
         // O chat depende do estado de saúde para enviar o contexto clínico
         // junto da pergunta — daí o proxy provider.

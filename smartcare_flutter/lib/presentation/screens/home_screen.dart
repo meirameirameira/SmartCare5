@@ -224,10 +224,20 @@ class _Body extends StatelessWidget {
                 onTap: () => context.go(Routes.map)),
             const SizedBox(width: 8),
             QuickActionButton(
+                icon: '📋',
+                label: 'Relatório clínico',
+                sub: 'Score, médias e consumo',
+                onTap: () => context.push(Routes.report)),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            QuickActionButton(
                 icon: '⚙️',
                 label: 'Preferências',
                 sub: 'Tema e acessibilidade',
                 onTap: () => context.push(Routes.settings)),
+            const SizedBox(width: 8),
+            const Spacer(),
           ]),
           const SizedBox(height: 24),
         ],

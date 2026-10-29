@@ -10,6 +10,7 @@ import com.smarthas.api.repository.DeliveryOrderRepository;
 import com.smarthas.api.repository.DoctorRepository;
 import com.smarthas.api.repository.PatientRepository;
 import com.smarthas.api.repository.VitalReadingRepository;
+import com.smarthas.api.routines.ClinicalRoutines;
 import com.smarthas.api.service.AlertService;
 import com.smarthas.api.domain.Appointment;
 import com.smarthas.api.domain.DeliveryOrder;
@@ -44,12 +45,13 @@ public class DemoDataLoader implements CommandLineRunner {
     private final AppointmentRepository appointments;
     private final DeliveryOrderRepository deliveries;
     private final AlertService alertService;
+    private final ClinicalRoutines clinicalRoutines;
     private final PasswordEncoder passwordEncoder;
 
     public DemoDataLoader(AppUserRepository users, PatientRepository patients, VitalReadingRepository readings,
                           DoctorRepository doctors, AppointmentRepository appointments,
                           DeliveryOrderRepository deliveries, AlertService alertService,
-                          PasswordEncoder passwordEncoder) {
+                          ClinicalRoutines clinicalRoutines, PasswordEncoder passwordEncoder) {
         this.users = users;
         this.patients = patients;
         this.readings = readings;
@@ -57,6 +59,7 @@ public class DemoDataLoader implements CommandLineRunner {
         this.appointments = appointments;
         this.deliveries = deliveries;
         this.alertService = alertService;
+        this.clinicalRoutines = clinicalRoutines;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -82,6 +85,13 @@ public class DemoDataLoader implements CommandLineRunner {
                 "Felipe Meira", AppUser.Role.PATIENT);
         patientUser.setPatient(felipe);
         users.save(patientUser);
+
+        // Mesmo segundo paciente com acesso ao app da carga Oracle
+        // (database/oracle/04_carga_dados.sql).
+        AppUser joaoUser = new AppUser("joao@smarthas.com", passwordEncoder.encode("paciente123"),
+                "Joao Silva", AppUser.Role.PATIENT);
+        joaoUser.setPatient(joao);
+        users.save(joaoUser);
 
         Doctor ricardo = doctors.save(new Doctor("Dr. Ricardo Alves", "Endocrinologia", "CRM/SP 87432", true));
         doctors.save(new Doctor("Dra. Ana Lima", "Clinica Geral", "CRM/SP 54210", true));
@@ -116,13 +126,14 @@ public class DemoDataLoader implements CommandLineRunner {
 
     /**
      * Registra a leitura mais recente do paciente fora das faixas de referencia
-     * e deixa o motor de alertas gerar os avisos correspondentes.
+     * e deixa o motor de alertas gerar os avisos correspondentes (a procedure
+     * PL/SQL no perfil {@code oracle}, o motor Java nos demais).
      *
      * <p>Garante que o painel administrativo e a visao geral tenham conteudo
      * desde o primeiro acesso, sem alerta fabricado manualmente.</p>
      */
     private void seedOpenAlerts(Patient patient) {
-        VitalReading altered = readings.save(new VitalReading(
+        VitalReading altered = readings.saveAndFlush(new VitalReading(
                 patient,
                 112,    // taquicardia: fora da faixa de atencao
                 93.4,   // SpO2 em atencao
@@ -132,7 +143,7 @@ public class DemoDataLoader implements CommandLineRunner {
                 37.4,
                 Instant.now().minus(35, ChronoUnit.MINUTES)));
 
-        alertService.generateFrom(altered);
+        clinicalRoutines.generateAlerts(altered);
     }
 
     /** Gera um historico plausivel com passeio aleatorio em torno da linha de base. */

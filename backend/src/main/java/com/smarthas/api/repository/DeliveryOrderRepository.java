@@ -2,6 +2,7 @@ package com.smarthas.api.repository;
 
 import com.smarthas.api.domain.DeliveryOrder;
 import com.smarthas.api.domain.DeliveryStatus;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +18,11 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
     boolean existsByOrderCode(String orderCode);
 
     long countByStatus(DeliveryStatus status);
+
+    /** Consumo de medicamentos do paciente no periodo (relatorio consolidado). */
+    long countByPatientIdAndCreatedAtAfterAndStatusNot(Long patientId, Instant since, DeliveryStatus excluded);
+
+    long countByPatientIdAndCreatedAtAfterAndStatus(Long patientId, Instant since, DeliveryStatus status);
 
     /**
      * Agregacao feita no banco (e nao em memoria) para alimentar o painel:

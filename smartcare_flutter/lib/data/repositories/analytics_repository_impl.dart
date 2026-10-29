@@ -5,6 +5,7 @@ import '../../domain/entities/entities.dart';
 import '../../domain/repositories/repositories.dart';
 import '../../domain/services/health_score_engine.dart';
 import '../datasources/local/demo_catalog.dart';
+import '../datasources/remote/smarthas_api_datasource.dart';
 
 /// Séries históricas e insights de analytics.
 ///
@@ -137,6 +138,66 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
               'vs. início do período',
       trendUp: improving,
       weeklyData: data,
+      colorType: color,
+    );
+  }
+}
+
+/// Analytics servido pela API Smart HAS a partir das leituras gravadas.
+///
+/// Com o back-end configurado, a tela deixa de interpolar séries sintéticas:
+/// os pontos do gráfico são as medições reais do período, e o insight de
+/// score é o mesmo que a equipe vê no painel administrativo.
+class ApiAnalyticsRepository implements AnalyticsRepository {
+  ApiAnalyticsRepository(this._api);
+
+  final SmartHasApiDataSource _api;
+
+  // Uma única resposta atende métricas e insights: `loadMetrics` sempre busca
+  // dados novos e `loadInsights` reaproveita a resposta do mesmo período.
+  int? _lastPeriod;
+  ({List<ServerMetric> metrics, List<AiInsight> insights})? _last;
+
+  Future<({List<ServerMetric> metrics, List<AiInsight> insights})> _fetch(int days) async {
+    final data = await _api.fetchAnalytics(days);
+    _lastPeriod = days;
+    _last = data;
+    return data;
+  }
+
+  @override
+  Future<Result<List<MetricSeries>>> loadMetrics(int periodDays) =>
+      Result.guard(() async {
+        final data = await _fetch(periodDays);
+        return data.metrics.map(_toSeries).toList(growable: false);
+      });
+
+  @override
+  Future<Result<List<AiInsight>>> loadInsights(int periodDays) =>
+      Result.guard(() async {
+        final cached = _lastPeriod == periodDays ? _last : null;
+        return (cached ?? await _fetch(periodDays)).insights;
+      });
+
+  /// Rótulos da API sem acento -> rótulos e cores usados nas telas.
+  static MetricSeries _toSeries(ServerMetric m) {
+    final (label, unit, color) = switch (m.label) {
+      'Freq. Cardiaca' => ('Freq. Cardíaca', 'bpm', MetricColor.red),
+      'SpO2' => ('SpO₂', '%', MetricColor.blue),
+      'Glicemia' => ('Glicemia', 'mg/dL', MetricColor.amber),
+      'Pressao Sistolica' => ('Pressão Sistólica', 'mmHg', MetricColor.green),
+      _ => (m.label, m.unit, MetricColor.green),
+    };
+    return MetricSeries(
+      label: label,
+      currentValue: m.currentValue,
+      unit: unit,
+      trend: m.trend
+          .replaceAll('Estavel no periodo', 'Estável no período')
+          .replaceAll('Sem dados no periodo', 'Sem dados no período')
+          .replaceAll('vs. inicio do periodo', 'vs. início do período'),
+      trendUp: m.trendUp,
+      weeklyData: m.values,
       colorType: color,
     );
   }

@@ -67,6 +67,26 @@ spring:
       path: /h2-console
 
 ---
+# Oracle com as procedures e functions PL/SQL (Fase 6).
+# Antes de subir, instale o esquema com database/oracle/instalar.sql.
+spring:
+  config:
+    activate:
+      on-profile: oracle
+  datasource:
+    url: ${ORACLE_URL:jdbc:oracle:thin:@oracle.fiap.com.br:1521:ORCL}
+    username: ${ORACLE_USER}
+    password: ${ORACLE_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      maximum-pool-size: 5
+  jpa:
+    hibernate:
+      # O esquema e versionado nos scripts SQL (governanca): o Hibernate nao
+      # cria nem altera tabelas no Oracle.
+      ddl-auto: none
+
+---
 spring:
   config:
     activate:

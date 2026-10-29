@@ -10,6 +10,7 @@ API:
 | Módulo | Stack | Papel |
 |---|---|---|
 | [`backend/`](backend/) | Java 21 · Spring Boot 3.5 | API REST, persistência, regras clínicas, segurança JWT e painel Thymeleaf |
+| [`database/oracle/`](database/oracle/README.md) | Oracle 19c+ · PL/SQL | Modelo físico, carga simulada, functions e procedures clínicas |
 | [`smartcare_flutter/`](smartcare_flutter/README.md) | Flutter 3 · Dart 3 | Aplicativo do paciente |
 | [`web-admin/`](web-admin/README.md) | Angular 20 | Painel administrativo da equipe assistencial |
 | [`app/`](app/) | Kotlin · Android | Aplicativo Android da fase anterior |
@@ -26,6 +27,11 @@ Suba os módulos nesta ordem:
 ```bash
 cd backend && gradlew.bat bootRun
 ```
+
+Para usar o banco Oracle com as rotinas PL/SQL, instale o esquema com
+[`database/oracle/instalar.sql`](database/oracle/README.md) e suba a API com
+`backendun-oracle.bat` (variáveis `ORACLE_URL`, `ORACLE_USER` e
+`ORACLE_PASSWORD`).
 
 ```bash
 cd web-admin && npm install && npm start
@@ -69,20 +75,23 @@ nunca abre zerado. Para recomeçar do zero, apague `backend/data/`.
 | ADMIN | `admin@smarthas.com` | `admin123` |
 | PROFESSIONAL | `enfermagem@smarthas.com` | `enfermagem123` |
 | PATIENT | `felipe@smarthas.com` | `paciente123` |
+| PATIENT | `joao@smarthas.com` | `paciente123` |
 
 ---
 
 ## Qualidade
 
 ```bash
-cd backend && gradlew.bat test                            # 21 testes de integração
-cd web-admin && npm install && npm test                   # 15 testes unitários
+cd backend && gradlew.bat test                            # 35 testes (integração, JDBC/PL/SQL, paridade)
+cd web-admin && npm install && npm test                   # 19 testes unitários
 cd web-admin && npm run build                             # build de produção
-cd smartcare_flutter && flutter analyze && flutter test   # 54 testes
+cd smartcare_flutter && flutter analyze && flutter test   # 93 testes
 ```
 
-Total: **90 testes automatizados** cobrindo regras clínicas, fluxo logístico,
-segurança JWT, contrato da API e telas.
+Total: **147 testes automatizados** cobrindo regras clínicas, fluxo logístico,
+segurança JWT, contrato da API, integração com as procedures Oracle e telas.
+Dois testes de paridade (Java e Dart) leem a carga Oracle e falham se as faixas
+clínicas do banco divergirem das do back-end ou do app.
 
 ---
 
@@ -97,3 +106,8 @@ segurança JWT, contrato da API e telas.
 - [Parte 1 — Aprimoramento da solução Flutter](entregas/Fase5_Parte1_Aprimoramentos.md)
 - [Parte 2 — Back-end escalável com Spring Boot](entregas/Fase5_Parte2_Backend.md)
 - [Parte 3 — Integração web com Angular](entregas/Fase5_Parte3_Angular.md)
+
+### Fase 6 — Oracle PL/SQL
+
+- **[Entrega da Fase 6 (PDF)](entregas/SmartHAS_Fase6_Entrega.pdf)** · [versão Word](entregas/SmartHAS_Fase6_Entrega.docx)
+- [Banco Oracle, functions e procedures](database/oracle/README.md)

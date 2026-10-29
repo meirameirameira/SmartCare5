@@ -417,3 +417,149 @@ class SmartDevice {
     this.status,
   });
 }
+
+// ─── Relatório clínico consolidado ────────────────────────────────────────────
+
+/// Quem produziu o relatório — exibido na tela para dar transparência à origem
+/// do número.
+enum ReportEngine {
+  /// Procedures e functions PL/SQL no Oracle (API com perfil `oracle`).
+  oraclePlsql,
+
+  /// Motor Java da API (banco H2 de desenvolvimento).
+  server,
+
+  /// Calculado no próprio aparelho (modo demonstração).
+  device,
+}
+
+/// Média de cada sinal vital no período; `null` quando não houve leitura.
+class VitalAverages {
+  final double? heartRate;
+  final double? spO2;
+  final double? glucose;
+  final double? systolic;
+  final double? diastolic;
+  final double? temperature;
+
+  const VitalAverages({
+    this.heartRate,
+    this.spO2,
+    this.glucose,
+    this.systolic,
+    this.diastolic,
+    this.temperature,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'heartRate': heartRate,
+        'spO2': spO2,
+        'glucose': glucose,
+        'systolic': systolic,
+        'diastolic': diastolic,
+        'temperature': temperature,
+      };
+
+  factory VitalAverages.fromJson(Map<String, dynamic> json) => VitalAverages(
+        heartRate: (json['heartRate'] as num?)?.toDouble(),
+        spO2: (json['spO2'] as num?)?.toDouble(),
+        glucose: (json['glucose'] as num?)?.toDouble(),
+        systolic: (json['systolic'] as num?)?.toDouble(),
+        diastolic: (json['diastolic'] as num?)?.toDouble(),
+        temperature: (json['temperature'] as num?)?.toDouble(),
+      );
+}
+
+/// Relatório clínico e de consumo de medicamentos de um período.
+///
+/// Com o back-end no ar, é o resultado da procedure
+/// `PRC_CONSOLIDAR_RELATORIO` (Oracle); em modo demonstração, é calculado
+/// pelo `ClinicalReportEngine` com as mesmas regras.
+class ClinicalReport {
+  final String patientName;
+  final int periodDays;
+  final DateTime generatedAt;
+  final int readings;
+  final VitalAverages averages;
+  final int? latestScore;
+  final double? averageScore;
+  final String riskLevel;
+
+  /// % das leituras de glicemia dentro da faixa normal ("Time in Range").
+  final double? glucoseTimeInRange;
+  final int openAlerts;
+  final int urgentAlerts;
+  final int alertsInPeriod;
+  final int deliveriesTotal;
+  final int deliveriesDelivered;
+
+  /// Resumo textual formatado pela rotina que gerou o relatório.
+  final String summary;
+  final ReportEngine engine;
+
+  const ClinicalReport({
+    required this.patientName,
+    required this.periodDays,
+    required this.generatedAt,
+    required this.readings,
+    required this.averages,
+    required this.latestScore,
+    required this.averageScore,
+    required this.riskLevel,
+    required this.glucoseTimeInRange,
+    required this.openAlerts,
+    required this.urgentAlerts,
+    required this.alertsInPeriod,
+    required this.deliveriesTotal,
+    required this.deliveriesDelivered,
+    required this.summary,
+    required this.engine,
+  });
+
+  /// Percentual dos pedidos do período já entregues; `null` sem pedidos.
+  double? get deliveryRate => deliveriesTotal == 0
+      ? null
+      : deliveriesDelivered * 100 / deliveriesTotal;
+
+  Map<String, dynamic> toJson() => {
+        'patientName': patientName,
+        'periodDays': periodDays,
+        'generatedAt': generatedAt.toIso8601String(),
+        'readings': readings,
+        'averages': averages.toJson(),
+        'latestScore': latestScore,
+        'averageScore': averageScore,
+        'riskLevel': riskLevel,
+        'glucoseTimeInRange': glucoseTimeInRange,
+        'openAlerts': openAlerts,
+        'urgentAlerts': urgentAlerts,
+        'alertsInPeriod': alertsInPeriod,
+        'deliveriesTotal': deliveriesTotal,
+        'deliveriesDelivered': deliveriesDelivered,
+        'summary': summary,
+        'engine': engine.name,
+      };
+
+  factory ClinicalReport.fromJson(Map<String, dynamic> json) => ClinicalReport(
+        patientName: json['patientName'] as String,
+        periodDays: (json['periodDays'] as num).toInt(),
+        generatedAt: DateTime.parse(json['generatedAt'] as String),
+        readings: (json['readings'] as num).toInt(),
+        averages: VitalAverages.fromJson(
+            (json['averages'] as Map).cast<String, dynamic>()),
+        latestScore: (json['latestScore'] as num?)?.toInt(),
+        averageScore: (json['averageScore'] as num?)?.toDouble(),
+        riskLevel: json['riskLevel'] as String,
+        glucoseTimeInRange: (json['glucoseTimeInRange'] as num?)?.toDouble(),
+        openAlerts: (json['openAlerts'] as num).toInt(),
+        urgentAlerts: (json['urgentAlerts'] as num).toInt(),
+        alertsInPeriod: (json['alertsInPeriod'] as num).toInt(),
+        deliveriesTotal: (json['deliveriesTotal'] as num).toInt(),
+        deliveriesDelivered: (json['deliveriesDelivered'] as num).toInt(),
+        summary: json['summary'] as String,
+        engine: ReportEngine.values.firstWhere(
+          (e) => e.name == json['engine'],
+          orElse: () => ReportEngine.server,
+        ),
+      );
+}

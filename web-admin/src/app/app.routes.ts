@@ -5,6 +5,7 @@ import { AdminComponent } from './pages/admin/admin.component';
 import { EntregasComponent } from './pages/entregas/entregas.component';
 import { HomeComponent } from './pages/home/home.component';
 import { LoginComponent } from './pages/login/login.component';
+import { RelatoriosComponent } from './pages/relatorios/relatorios.component';
 
 /** Navegacao do painel: acesso publico apenas no login. */
 export const routes: Routes = [
@@ -27,6 +28,12 @@ export const routes: Routes = [
     component: EntregasComponent,
     canActivate: [authGuard],
     title: 'Entregas',
+  },
+  {
+    path: 'relatorios',
+    component: RelatoriosComponent,
+    canActivate: [authGuard],
+    title: 'Relatorios',
   },
   { path: '**', redirectTo: 'home' },
 ];

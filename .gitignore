@@ -50,3 +50,6 @@ ATIVIDADE_FASE3.docx
 *.pptx
 *.rels
 unpacked_rel/
+
+# Credenciais do Oracle local de desenvolvimento
+backend/oracle.local.bat

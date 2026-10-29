@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smartcare_flutter/core/network/api_client.dart';
 import 'package:smartcare_flutter/core/storage/local_cache.dart';
 import 'package:smartcare_flutter/data/datasources/remote/smarthas_api_datasource.dart';
+import 'package:smartcare_flutter/data/repositories/analytics_repository_impl.dart';
 import 'package:smartcare_flutter/domain/entities/entities.dart';
 
 /// API Smart HAS simulada em um servidor HTTP local.
@@ -25,6 +26,9 @@ class _FakeSmartHasServer {
 
   /// Status recebidos em PATCH /deliveries/{id}/status.
   final List<String> statusPatches = [];
+
+  /// `periodDays` recebido em cada GET /patients/{id}/report.
+  final List<String?> reportQueries = [];
 
   String get baseUrl => 'http://${_server.address.host}:${_server.port}';
 
@@ -147,6 +151,70 @@ class _FakeSmartHasServer {
         'etaMinutes': 0,
         'proactiveMessage': 'Entrega confirmada pelo paciente.',
         'updatedAt': '2026-09-02T12:00:00Z',
+      });
+    }
+
+    if (path == '/api/v1/patients/7/report') {
+      reportQueries.add(request.uri.queryParameters['periodDays']);
+      return _json(request, 200, {
+        'patientId': 7,
+        'patientName': 'Felipe Meira',
+        'periodDays': int.parse(request.uri.queryParameters['periodDays'] ?? '30'),
+        'generatedAt': '2026-10-02T17:30:00Z',
+        'readings': 180,
+        'averages': {
+          'heartRate': 73.4,
+          'spO2': 97.9,
+          'glucose': 108.2,
+          'systolic': 119.6,
+          'diastolic': 78.1,
+          'temperature': 36.6,
+        },
+        'latestScore': 91,
+        'averageScore': 88.7,
+        'riskLevel': 'EXCELENTE',
+        'glucoseTimeInRange': 76.5,
+        'openAlerts': 1,
+        'urgentAlerts': 0,
+        'alertsInPeriod': 3,
+        'deliveriesTotal': 2,
+        'deliveriesDelivered': 1,
+        'summary': 'Felipe Meira, 22 anos | Score atual: 91/100 - EXCELENTE',
+        'engine': 'ORACLE_PLSQL',
+      });
+    }
+
+    if (path == '/api/v1/patients/7/analytics' ||
+        path == '/api/v1/analytics/patients/7') {
+      return _json(request, 200, {
+        'patientId': 7,
+        'periodDays': 7,
+        'readings': 3,
+        'metrics': [
+          {
+            'label': 'Freq. Cardiaca',
+            'unit': 'bpm',
+            'currentValue': '78',
+            'trend': '+4 bpm vs. inicio do periodo',
+            'trendUp': false,
+            'values': [74.0, 76.0, 78.0],
+          },
+          {
+            'label': 'SpO2',
+            'unit': '%',
+            'currentValue': '97.5',
+            'trend': 'Estavel no periodo',
+            'trendUp': true,
+            'values': [97.5, 97.4, 97.5],
+          },
+        ],
+        'insights': [
+          {
+            'title': 'Score de saude: 92/100 (EXCELENTE)',
+            'description': 'Nenhuma metrica saiu da faixa.',
+            'severity': 'INFO',
+          },
+        ],
       });
     }
 
@@ -299,5 +367,36 @@ void main() {
       throwsA(isA<Exception>()),
     );
     expect(session.isAuthenticated, isFalse);
+  });
+
+  test('relatorio consolidado no Oracle e mapeado com a origem PL/SQL', () async {
+    await session.login(email: 'felipe@smarthas.com', password: 'paciente123');
+    final report = await api.fetchReport(30);
+
+    expect(server.reportQueries, ['30']);
+    expect(server.authHeaders.last, 'Bearer token-1');
+    expect(report.engine, ReportEngine.oraclePlsql);
+    expect(report.latestScore, 91);
+    expect(report.readings, 180);
+    expect(report.averages.glucose, 108.2);
+    expect(report.glucoseTimeInRange, 76.5);
+    expect(report.deliveryRate, 50);
+    expect(report.summary, startsWith('Felipe Meira, 22 anos'));
+  });
+
+  test('analytics com back-end usa as series reais do servidor', () async {
+    await session.login(email: 'felipe@smarthas.com', password: 'paciente123');
+    final repository = ApiAnalyticsRepository(api);
+
+    final metrics = (await repository.loadMetrics(7)).valueOrNull!;
+    final insights = (await repository.loadInsights(7)).valueOrNull!;
+
+    expect(metrics.first.label, 'Freq. Cardíaca');
+    expect(metrics.first.weeklyData, [74.0, 76.0, 78.0]);
+    expect(metrics.first.trend, '+4 bpm vs. início do período');
+    expect(metrics[1].label, 'SpO₂');
+    expect(insights.single.title, contains('92/100'));
+    // Metricas e insights do mesmo periodo saem de uma unica chamada.
+    expect(server.requestLog.where((r) => r.contains('/analytics/')), hasLength(1));
   });
 }

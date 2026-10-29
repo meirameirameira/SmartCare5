@@ -10,6 +10,7 @@ import '../../data/repositories/chat_repository_impl.dart';
 import '../../data/repositories/device_repository_impl.dart';
 import '../../data/repositories/health_repository_impl.dart';
 import '../../data/repositories/logistics_repository_impl.dart';
+import '../../data/repositories/report_repository_impl.dart';
 import '../../data/repositories/settings_repository_impl.dart';
 import '../../domain/repositories/repositories.dart';
 import '../network/api_client.dart';
@@ -55,7 +56,15 @@ class Injector {
         ? ApiDeliveryRepository(smartHasApi!)
         : DeliveryRepositoryImpl();
     consulta = ConsultaRepositoryImpl();
-    analytics = AnalyticsRepositoryImpl(health: health);
+    // Analytics e relatorio clinico tambem passam a vir do servidor quando ha
+    // back-end: series com as leituras reais e relatorio consolidado pelas
+    // rotinas do banco (PL/SQL no perfil Oracle).
+    analytics = smartHasApi != null
+        ? ApiAnalyticsRepository(smartHasApi!)
+        : AnalyticsRepositoryImpl(health: health);
+    report = smartHasApi != null
+        ? ApiReportRepository(smartHasApi!, cache)
+        : LocalReportRepository(health: health, delivery: delivery);
     chat = ChatRepositoryImpl(
       remote: AiRemoteDataSource(this.apiClient),
       cache: cache,
@@ -90,6 +99,7 @@ class Injector {
   late final DeliveryRepository delivery;
   late final ConsultaRepository consulta;
   late final AnalyticsRepository analytics;
+  late final ReportRepository report;
   late final ChatRepository chat;
   late final DeviceRepository devices;
   late final SettingsRepository settings;

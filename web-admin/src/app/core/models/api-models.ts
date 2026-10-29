@@ -92,6 +92,46 @@ export interface VisaoGeral {
   deliveriesByStatus: Record<string, number>;
 }
 
+/** Quem calculou o relatorio: as rotinas PL/SQL do Oracle ou o motor Java. */
+export type MotorRelatorio = 'ORACLE_PLSQL' | 'JAVA';
+
+export interface MediasVitais {
+  heartRate: number | null;
+  spO2: number | null;
+  glucose: number | null;
+  systolic: number | null;
+  diastolic: number | null;
+  temperature: number | null;
+}
+
+/** Linha de PATIENT_REPORT, gravada pela PRC_CONSOLIDAR_RELATORIO. */
+export interface RelatorioPaciente {
+  patientId: number;
+  patientName: string;
+  periodDays: number;
+  generatedAt: string;
+  readings: number;
+  averages: MediasVitais;
+  latestScore: number | null;
+  averageScore: number | null;
+  riskLevel: string;
+  glucoseTimeInRange: number | null;
+  openAlerts: number;
+  urgentAlerts: number;
+  alertsInPeriod: number;
+  deliveriesTotal: number;
+  deliveriesDelivered: number;
+  summary: string;
+  engine: MotorRelatorio;
+}
+
+export interface Consolidacao {
+  engine: MotorRelatorio;
+  periodDays: number;
+  processed: number;
+  reports: RelatorioPaciente[];
+}
+
 /** Envelope de erro padronizado devolvido pela API. */
 export interface ErroApi {
   timestamp: string;

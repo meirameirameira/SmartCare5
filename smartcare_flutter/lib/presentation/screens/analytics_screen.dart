@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/analytics_provider.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/entities/entities.dart';
 
@@ -13,7 +15,16 @@ class AnalyticsScreen extends StatelessWidget {
     final p = context.watch<AnalyticsProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Analytics de Saúde')),
+      appBar: AppBar(
+        title: const Text('Analytics de Saúde'),
+        actions: [
+          IconButton(
+            tooltip: 'Relatório clínico consolidado',
+            icon: const Icon(Icons.assignment_outlined),
+            onPressed: () => context.push(Routes.report),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // Period selector
