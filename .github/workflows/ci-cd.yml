@@ -1,0 +1,421 @@
+# =============================================================================
+# Smart HAS / SmartCare 5.0 - pipeline CI/CD (Fase 7)
+#
+#   backend  -> build Gradle, testes JUnit, cobertura JaCoCo, jar da API
+#   web      -> testes (Vitest) e build de producao do painel Angular
+#   mobile   -> analise estatica e testes do app Flutter
+#   oracle   -> Oracle Free em container: instalacao do esquema, testes
+#               PL/SQL, demonstracao, API real sobre o banco e smoke test
+#   deploy   -> (main) imagem Docker no GHCR, deploy incremental do banco
+#               Oracle de destino e gatilho de deploy da API
+#
+# Cada job publica logs e relatorios como artefatos e escreve um resumo na
+# aba "Summary" da execucao.
+# =============================================================================
+name: CI/CD Smart HAS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      modo_banco:
+        description: "Deploy do banco: incremental (deploy.sql) ou completo (instalar.sql - APAGA os dados)"
+        type: choice
+        options: [incremental, completo]
+        default: incremental
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # "bash" explicito liga o pipefail: um "comando | tee log" que falha quebra o job.
+    shell: bash
+
+jobs:
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Back-end · build e testes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build, testes e cobertura
+        working-directory: backend
+        run: |
+          mkdir -p ../logs
+          chmod +x gradlew
+          ./gradlew build --console=plain 2>&1 | tee ../logs/backend-build.log
+
+      - name: Relatorio de testes JUnit
+        if: always()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: backend/build/test-results/test/*.xml
+          check_name: Testes JUnit (back-end)
+          detailed_summary: true
+          include_passed: true
+
+      - name: Resumo de cobertura
+        if: always()
+        run: |
+          xml=backend/build/reports/jacoco/test/jacocoTestReport.xml
+          if [[ -f "$xml" ]]; then
+            linha=$(grep -o '<counter type="LINE" missed="[0-9]*" covered="[0-9]*"/>' "$xml" | tail -1)
+            missed=$(sed -E 's/.*missed="([0-9]+)".*/\1/' <<<"$linha")
+            covered=$(sed -E 's/.*covered="([0-9]+)".*/\1/' <<<"$linha")
+            pct=$(awk "BEGIN { printf \"%.1f\", 100 * $covered / ($covered + $missed) }")
+            echo "### Cobertura do back-end: ${pct}% das linhas (${covered}/$((covered + missed)))" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Publicar jar da API
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/build/libs/smarthas-api.jar
+          retention-days: 7
+
+      - name: Publicar relatorios e logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-relatorios
+          path: |
+            logs/
+            backend/build/reports/tests/
+            backend/build/reports/jacoco/
+            backend/build/test-results/
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  web:
+    name: Painel Angular · testes e build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-admin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web-admin/package-lock.json
+
+      - run: npm ci
+
+      - name: Testes unitarios (Vitest)
+        run: |
+          mkdir -p ../logs
+          npm test 2>&1 | tee ../logs/web-testes.log
+
+      - name: Build de producao
+        run: npm run build 2>&1 | tee ../logs/web-build.log
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "### Painel Angular"
+            echo '```'
+            grep -E "Test Files|Tests " ../logs/web-testes.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar build e logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-admin
+          path: |
+            web-admin/dist/
+            logs/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  mobile:
+    name: App Flutter · analise e testes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartcare_flutter
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Analise estatica
+        run: |
+          mkdir -p ../logs
+          flutter analyze --no-fatal-infos 2>&1 | tee ../logs/flutter-analise.log
+
+      - name: Testes
+        run: flutter test --reporter expanded 2>&1 | tee ../logs/flutter-testes.log
+
+      - name: Resumo
+        if: always()
+        run: |
+          echo "### App Flutter: $(tail -1 ../logs/flutter-testes.log)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-logs
+          path: logs/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  oracle:
+    name: Oracle · PL/SQL e integracao com a API
+    runs-on: ubuntu-latest
+    needs: backend
+    env:
+      # Credenciais descartaveis do container efemero de CI (nao e um banco real).
+      ORACLE_SYS_PASSWORD: CiSys_SmartHas_2026
+      APP_USER: smarthas
+      APP_PASSWORD: CiApp_SmartHas_2026
+    services:
+      oracle:
+        image: gvenzl/oracle-free:23-slim
+        env:
+          ORACLE_PASSWORD: CiSys_SmartHas_2026
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: artefato
+
+      - name: Preparar esquema da aplicacao
+        run: |
+          mkdir -p logs
+          C="${{ job.services.oracle.id }}"
+          docker exec -i "$C" sqlplus -S -L "system/${ORACLE_SYS_PASSWORD}@//localhost/FREEPDB1" <<SQL | tee logs/00_usuario.log
+          WHENEVER SQLERROR EXIT FAILURE
+          CREATE USER ${APP_USER} IDENTIFIED BY "${APP_PASSWORD}" DEFAULT TABLESPACE users QUOTA UNLIMITED ON users;
+          GRANT CREATE SESSION, CREATE TABLE, CREATE PROCEDURE, CREATE VIEW, CREATE SEQUENCE, CREATE TRIGGER TO ${APP_USER};
+          EXIT
+          SQL
+          docker cp database/oracle "$C":/tmp/oracle
+
+      - name: Instalar banco (tabelas, packages, triggers, carga)
+        run: |
+          docker exec -w /tmp/oracle "${{ job.services.oracle.id }}" \
+            sqlplus -S -L "${APP_USER}/${APP_PASSWORD}@//localhost/FREEPDB1" @instalar.sql \
+            | tee logs/01_instalacao.log
+          ! grep -E "^(ORA|PLS|SP2)-[0-9]+" logs/01_instalacao.log
+
+      - name: Testes automatizados PL/SQL
+        run: |
+          docker exec -w /tmp/oracle "${{ job.services.oracle.id }}" \
+            sqlplus -S -L "${APP_USER}/${APP_PASSWORD}@//localhost/FREEPDB1" @10_testes_automatizados.sql \
+            | tee logs/02_testes_plsql.log
+
+      - name: Script de demonstracao (Dynamic SQL e triggers)
+        run: |
+          docker exec -w /tmp/oracle "${{ job.services.oracle.id }}" \
+            sqlplus -S -L "${APP_USER}/${APP_PASSWORD}@//localhost/FREEPDB1" @09_consultas_demonstracao.sql \
+            > logs/03_demonstracao.log
+          ! grep -E "^(PLS|SP2)-[0-9]+" logs/03_demonstracao.log
+
+      - name: Subir a API sobre o Oracle (perfil oracle)
+        env:
+          SPRING_PROFILES_ACTIVE: oracle
+          ORACLE_URL: jdbc:oracle:thin:@localhost:1521/FREEPDB1
+          ORACLE_USER: ${{ env.APP_USER }}
+          ORACLE_PASSWORD: ${{ env.APP_PASSWORD }}
+        run: |
+          nohup java -jar artefato/smarthas-api.jar > logs/04_api.log 2>&1 &
+          echo $! > api.pid
+          for i in $(seq 1 60); do
+            if curl -fs http://localhost:8080/actuator/health | grep -q '"UP"'; then
+              echo "API no ar apos $((i * 3))s"; exit 0
+            fi
+            sleep 3
+          done
+          echo "API nao respondeu"; tail -50 logs/04_api.log; exit 1
+
+      - name: Smoke test da integracao REST -> JDBC -> PL/SQL
+        run: node scripts/ci/smoke-test.mjs http://localhost:8080 | tee logs/05_smoke_test.log
+
+      - name: Evidencias gravadas no banco pela execucao
+        if: always()
+        run: |
+          docker exec -i "${{ job.services.oracle.id }}" \
+            sqlplus -S -L "${APP_USER}/${APP_PASSWORD}@//localhost/FREEPDB1" <<'SQL' | tee logs/06_evidencias.log
+          SET LINESIZE 200 PAGESIZE 100
+          COLUMN routine_name FORMAT A50
+          COLUMN client_module FORMAT A24
+          PROMPT == Log de execucao das rotinas (PKG_AUDITORIA)
+          SELECT routine_name, status, COUNT(*) AS execucoes FROM routine_execution_log GROUP BY routine_name, status ORDER BY 1, 2;
+          PROMPT == Auditoria de alertas (TRG_HEALTH_ALERT_AUDITORIA)
+          SELECT client_module, operation, COUNT(*) AS eventos FROM health_alert_audit GROUP BY client_module, operation ORDER BY 1, 2;
+          EXIT
+          SQL
+
+      - name: Resumo da execucao
+        if: always()
+        run: |
+          ok=$(grep -c '^\[OK\]' logs/02_testes_plsql.log 2>/dev/null || true)
+          falhas=$(grep -c '^\[FALHA\]' logs/02_testes_plsql.log 2>/dev/null || true)
+          smoke=$(grep -c '^\[OK\]' logs/05_smoke_test.log 2>/dev/null || true)
+          {
+            echo "### Banco Oracle"
+            echo "| Etapa | Resultado |"
+            echo "|---|---|"
+            echo "| Testes PL/SQL | ${ok:-0} OK, ${falhas:-0} falha(s) |"
+            echo "| Smoke test API + Oracle | ${smoke:-0} verificacoes OK |"
+            echo
+            echo '<details><summary>Testes PL/SQL</summary>'
+            echo
+            echo '```'
+            cat logs/02_testes_plsql.log 2>/dev/null || true
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Encerrar API e coletar logs do container
+        if: always()
+        run: |
+          [[ -f api.pid ]] && kill "$(cat api.pid)" || true
+          docker logs "${{ job.services.oracle.id }}" > logs/07_container_oracle.log 2>&1 || true
+
+      - name: Publicar logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oracle-logs
+          path: logs/
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy · imagem, banco e API
+    runs-on: ubuntu-latest
+    needs: [backend, web, mobile, oracle]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment: producao
+    permissions:
+      contents: read
+      packages: write
+    env:
+      ORACLE_DEPLOY_CONNECT: ${{ secrets.ORACLE_DEPLOY_CONNECT }}
+      ORACLE_DEPLOY_USER: ${{ secrets.ORACLE_DEPLOY_USER }}
+      ORACLE_DEPLOY_PASSWORD: ${{ secrets.ORACLE_DEPLOY_PASSWORD }}
+      DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+      MODO_BANCO: ${{ inputs.modo_banco || 'incremental' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/build/libs
+
+      - name: Nome da imagem
+        id: imagem
+        run: echo "nome=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/smarthas-api" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build e push da imagem da API
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: |
+            ${{ steps.imagem.outputs.nome }}:latest
+            ${{ steps.imagem.outputs.nome }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Deploy do banco Oracle de destino
+        if: env.ORACLE_DEPLOY_CONNECT != ''
+        run: |
+          mkdir -p logs
+          curl -fsSL -o sqlcl.zip https://download.oracle.com/otn_software/java/sqldeveloper/sqlcl-latest.zip
+          unzip -q sqlcl.zip -d "$RUNNER_TEMP"
+          script=deploy.sql
+          [[ "$MODO_BANCO" == "completo" ]] && script=instalar.sql
+          cd database/oracle
+          "$RUNNER_TEMP/sqlcl/bin/sql" -S -L \
+            "${ORACLE_DEPLOY_USER}/\"${ORACLE_DEPLOY_PASSWORD}\"@${ORACLE_DEPLOY_CONNECT}" \
+            @"$script" < /dev/null | tee ../../logs/deploy-banco.log
+          ! grep -E "^(ORA|PLS|SP2)-[0-9]+" ../../logs/deploy-banco.log
+
+      - name: Disparar deploy da API
+        if: env.DEPLOY_WEBHOOK_URL != ''
+        run: curl -fsS -X POST "$DEPLOY_WEBHOOK_URL"
+
+      - name: Resumo do deploy
+        if: always()
+        run: |
+          {
+            echo "### Deploy"
+            echo "| Alvo | Situacao |"
+            echo "|---|---|"
+            echo "| Imagem | \`${{ steps.imagem.outputs.nome }}:${{ github.sha }}\` |"
+            if [[ -n "$ORACLE_DEPLOY_CONNECT" ]]; then
+              echo "| Banco Oracle | publicado (modo ${MODO_BANCO}) |"
+            else
+              echo "| Banco Oracle | ignorado - configure os secrets ORACLE_DEPLOY_* |"
+            fi
+            if [[ -n "$DEPLOY_WEBHOOK_URL" ]]; then
+              echo "| API | deploy disparado no provedor |"
+            else
+              echo "| API | ignorado - configure o secret DEPLOY_WEBHOOK_URL |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-logs
+          path: logs/
+          if-no-files-found: ignore
+          retention-days: 30

@@ -20,7 +20,7 @@ class OracleErrorTranslatorTest {
     }
 
     @Test
-    @DisplayName("paciente ou leitura inexistente viram 404 com a mensagem da procedure")
+    @DisplayName("paciente, leitura ou alerta inexistente viram 404 com a mensagem da procedure")
     void notFound() {
         RuntimeException translated = OracleErrorTranslator.translate(oracleError(20004, "Paciente 9 nao encontrado."));
 
@@ -29,12 +29,15 @@ class OracleErrorTranslatorTest {
                 .hasMessage("Paciente 9 nao encontrado.");
         assertThat(OracleErrorTranslator.translate(oracleError(20001, "Leitura 3 nao encontrada.")))
                 .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(OracleErrorTranslator.translate(oracleError(20002, "Alerta 5 nao encontrado.")))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
     @DisplayName("violacoes de regra viram 422")
     void businessRules() {
-        for (int code : new int[] {20003, 20005, 20006, 20007, 20010, 20011, 20012}) {
+        for (int code : new int[] {20003, 20005, 20006, 20007, 20008, 20010, 20011, 20012,
+                20013, 20014, 20015, 20016, 20020}) {
             assertThat(OracleErrorTranslator.translate(oracleError(code, "regra")))
                     .isInstanceOf(BusinessRuleException.class)
                     .hasMessage("regra");

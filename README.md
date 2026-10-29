@@ -1,5 +1,7 @@
 # Smart HAS · SmartCare 5.0
 
+[![CI/CD Smart HAS](https://github.com/meirameirameira/SmartCare5/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/meirameirameira/SmartCare5/actions/workflows/ci-cd.yml)
+
 Sistema de apoio à decisão em saúde domiciliar alinhado à Sociedade 5.0:
 monitoramento contínuo de sinais vitais, alertas clínicos, teleconsulta e a
 camada **AI Logistics Extension** para entrega inteligente de medicamentos.
@@ -10,7 +12,7 @@ API:
 | Módulo | Stack | Papel |
 |---|---|---|
 | [`backend/`](backend/) | Java 21 · Spring Boot 3.5 | API REST, persistência, regras clínicas, segurança JWT e painel Thymeleaf |
-| [`database/oracle/`](database/oracle/README.md) | Oracle 19c+ · PL/SQL | Modelo físico, carga simulada, functions e procedures clínicas |
+| [`database/oracle/`](database/oracle/README.md) | Oracle 19c+ · PL/SQL | Modelo físico, carga simulada, packages, triggers de auditoria e Dynamic SQL |
 | [`smartcare_flutter/`](smartcare_flutter/README.md) | Flutter 3 · Dart 3 | Aplicativo do paciente |
 | [`web-admin/`](web-admin/README.md) | Angular 20 | Painel administrativo da equipe assistencial |
 | [`app/`](app/) | Kotlin · Android | Aplicativo Android da fase anterior |
@@ -30,7 +32,7 @@ cd backend && gradlew.bat bootRun
 
 Para usar o banco Oracle com as rotinas PL/SQL, instale o esquema com
 [`database/oracle/instalar.sql`](database/oracle/README.md) e suba a API com
-`backendun-oracle.bat` (variáveis `ORACLE_URL`, `ORACLE_USER` e
+`backend\run-oracle.bat` (variáveis `ORACLE_URL`, `ORACLE_USER` e
 `ORACLE_PASSWORD`).
 
 ```bash
@@ -88,6 +90,14 @@ cd web-admin && npm run build                             # build de produção
 cd smartcare_flutter && flutter analyze && flutter test   # 93 testes
 ```
 
+No banco, `database/oracle/10_testes_automatizados.sql` executa mais **47
+verificações** dos packages, triggers e Dynamic SQL.
+
+Tudo isso roda automaticamente no [pipeline CI/CD](docs/CI-CD.md) a cada push,
+junto com a instalação do esquema em um Oracle Free efêmero, a API real
+subindo sobre ele e um smoke test de ponta a ponta. Na `main`, o pipeline
+publica a imagem Docker da API e faz o deploy incremental do banco.
+
 Total: **147 testes automatizados** cobrindo regras clínicas, fluxo logístico,
 segurança JWT, contrato da API, integração com as procedures Oracle e telas.
 Dois testes de paridade (Java e Dart) leem a carga Oracle e falham se as faixas
@@ -111,3 +121,8 @@ clínicas do banco divergirem das do back-end ou do app.
 
 - **[Entrega da Fase 6 (PDF)](entregas/SmartHAS_Fase6_Entrega.pdf)** · [versão Word](entregas/SmartHAS_Fase6_Entrega.docx)
 - [Banco Oracle, functions e procedures](database/oracle/README.md)
+
+### Fase 7 — Consolidação e DevOps
+
+- [Parte 1 — Packages, triggers e Dynamic SQL](database/oracle/README.md#parte-1--objetos-criados)
+- [Parte 2 — Pipeline CI/CD (GitHub Actions)](docs/CI-CD.md)

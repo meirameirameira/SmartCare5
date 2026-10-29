@@ -1,12 +1,19 @@
 -- =============================================================================
--- Smart HAS / SmartCare 5.0 - Fase 6
+-- Smart HAS / SmartCare 5.0 - Fase 7
 -- 00_drop.sql - remove os objetos do esquema para uma reinstalacao limpa.
 -- Ignora objetos inexistentes (ORA-00942 / ORA-04043), entao pode ser
--- executado em um esquema vazio.
+-- executado em um esquema vazio. As triggers caem junto com as tabelas.
 -- =============================================================================
 DECLARE
     TYPE t_lista IS TABLE OF VARCHAR2(200);
 
+    -- Packages da Fase 7 (dependentes antes das dependencias).
+    v_packages t_lista := t_lista(
+        'pkg_consultas', 'pkg_relatorios', 'pkg_monitoramento',
+        'pkg_clinico', 'pkg_auditoria');
+
+    -- Rotinas avulsas da Fase 6, substituidas pelos packages. Continuam na
+    -- lista para que um esquema antigo seja migrado sem sobras.
     v_rotinas t_lista := t_lista(
         'PROCEDURE prc_consolidar_relatorio',
         'PROCEDURE prc_registrar_leitura',
@@ -21,6 +28,7 @@ DECLARE
 
     -- Ordem inversa das dependencias (filhas antes das maes).
     v_tabelas t_lista := t_lista(
+        'health_alert_audit',
         'routine_execution_log', 'patient_report', 'vital_reference_range',
         'delivery_order', 'health_alert', 'vital_reading', 'appointment',
         'doctor', 'app_user', 'patient_condition', 'patient');
@@ -30,6 +38,14 @@ DECLARE
     e_tabela_inexistente EXCEPTION;
     PRAGMA EXCEPTION_INIT(e_tabela_inexistente, -942);
 BEGIN
+    FOR i IN 1 .. v_packages.COUNT LOOP
+        BEGIN
+            EXECUTE IMMEDIATE 'DROP PACKAGE ' || v_packages(i);
+        EXCEPTION
+            WHEN e_objeto_inexistente THEN NULL;
+        END;
+    END LOOP;
+
     FOR i IN 1 .. v_rotinas.COUNT LOOP
         BEGIN
             EXECUTE IMMEDIATE 'DROP ' || v_rotinas(i);

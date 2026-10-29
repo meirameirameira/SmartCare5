@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smartcare_flutter/domain/services/health_score_engine.dart';
 
 /// As faixas clínicas do app precisam ser as mesmas carregadas no Oracle
-/// (`database/oracle/04_carga_dados.sql`): é dali que as functions PL/SQL
+/// (`database/oracle/08_carga_dados.sql`): é dali que as functions PL/SQL
 /// calculam o score que o relatório mostra.
 void main() {
   test('faixas do HealthScoreEngine iguais as da tabela VITAL_REFERENCE_RANGE', () {
-    final seed = File('../database/oracle/04_carga_dados.sql').readAsStringSync();
+    final seed = File('../database/oracle/08_carga_dados.sql').readAsStringSync();
     final insert = RegExp(
       r"INSERT INTO vital_reference_range VALUES \('(\w+)',\s*'[^']+',\s*'[^']+',"
       r'\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*(\d+),\s*\d+\);',

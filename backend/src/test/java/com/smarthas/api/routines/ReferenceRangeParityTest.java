@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Paridade das faixas de referencia Oracle x Java")
 class ReferenceRangeParityTest {
 
-    private static final Path SEED = Path.of("..", "database", "oracle", "04_carga_dados.sql");
+    private static final Path SEED = Path.of("..", "database", "oracle", "08_carga_dados.sql");
 
     private static final Pattern RANGE_INSERT = Pattern.compile(
             "INSERT INTO vital_reference_range VALUES \\('(\\w+)',\\s*'([^']+)',\\s*'([^']+)',"

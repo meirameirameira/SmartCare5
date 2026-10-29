@@ -37,8 +37,8 @@ public class PlsqlClinicalRoutines implements ClinicalRoutines {
 
     public static final String ENGINE = "ORACLE_PLSQL";
 
-    static final String CALL_REGISTRAR_ALERTAS = "{call prc_registrar_alertas_leitura(?, ?)}";
-    static final String CALL_CONSOLIDAR_RELATORIO = "{call prc_consolidar_relatorio(?, ?, ?)}";
+    static final String CALL_REGISTRAR_ALERTAS = "{call pkg_monitoramento.prc_registrar_alertas_leitura(?, ?)}";
+    static final String CALL_CONSOLIDAR_RELATORIO = "{call pkg_relatorios.prc_consolidar_relatorio(?, ?, ?)}";
 
     static final String SELECT_REPORT = """
             select r.patient_id, p.name, r.period_days, r.generated_at, r.readings_count,
@@ -65,7 +65,7 @@ public class PlsqlClinicalRoutines implements ClinicalRoutines {
         return ENGINE;
     }
 
-    /** {@code PRC_REGISTRAR_ALERTAS_LEITURA(p_reading_id IN, p_alertas_criados OUT)}. */
+    /** {@code PKG_MONITORAMENTO.PRC_REGISTRAR_ALERTAS_LEITURA(p_reading_id IN, p_alertas_criados OUT)}. */
     @Override
     public int generateAlerts(VitalReading reading) {
         try {
@@ -101,7 +101,7 @@ public class PlsqlClinicalRoutines implements ClinicalRoutines {
     }
 
     /**
-     * {@code PRC_CONSOLIDAR_RELATORIO(p_patient_id IN, p_dias IN, p_processados OUT)}.
+     * {@code PKG_RELATORIOS.PRC_CONSOLIDAR_RELATORIO(p_patient_id IN, p_dias IN, p_processados OUT)}.
      * Um {@code patientId} nulo consolida todos os pacientes.
      */
     private int callConsolidation(Long patientId, int periodDays) {

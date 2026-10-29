@@ -1,5 +1,6 @@
 plugins {
     java
+    jacoco
     id("org.springframework.boot") version "3.5.6"
     id("io.spring.dependency-management") version "1.1.7"
 }
@@ -56,4 +57,22 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
     systemProperty("spring.profiles.active", "test")
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+// Relatorio de cobertura (HTML para leitura, XML para o pipeline CI/CD).
+tasks.jacocoTestReport {
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+// Nome fixo do artefato: o Dockerfile e o pipeline nao dependem da versao.
+tasks.bootJar {
+    archiveFileName.set("smarthas-api.jar")
+}
+
+tasks.jar {
+    enabled = false
 }

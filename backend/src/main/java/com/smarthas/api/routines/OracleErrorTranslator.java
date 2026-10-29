@@ -8,14 +8,15 @@ import org.springframework.dao.DataAccessException;
 /**
  * Traduz os erros de negocio das rotinas PL/SQL para excecoes de dominio.
  *
- * <p>As procedures usam {@code RAISE_APPLICATION_ERROR} com codigos reservados
- * (ver {@code database/oracle/03_procedures.sql}). Aqui cada faixa vira a
+ * <p>Os packages e triggers usam {@code RAISE_APPLICATION_ERROR} com codigos
+ * reservados (ver {@code database/oracle/README.md}). Aqui cada faixa vira a
  * excecao que o {@code ApiExceptionHandler} ja sabe responder:</p>
  * <ul>
- *   <li>-20001 leitura inexistente, -20004 paciente inexistente: 404;</li>
+ *   <li>-20001 leitura, -20002 alerta e -20004 paciente inexistentes: 404;</li>
  *   <li>-20003 periodo invalido, -20005 falha de consolidacao, -20006 data
- *       futura, -20007 limite fisiologico, -20010 a -20012 parametros das
- *       functions: 422.</li>
+ *       futura, -20007 limite fisiologico, -20008 retencao de log, -20010 a
+ *       -20016 parametros das functions e consultas dinamicas, -20020
+ *       transicao de status barrada por trigger: 422.</li>
  * </ul>
  * <p>Qualquer outro erro do banco segue como esta e vira 500 com log.</p>
  */
@@ -32,8 +33,9 @@ public final class OracleErrorTranslator {
 
         String message = applicationMessage(sql);
         return switch (sql.getErrorCode()) {
-            case 20001, 20004 -> new ResourceNotFoundException(message);
-            case 20003, 20005, 20006, 20007, 20010, 20011, 20012 -> new BusinessRuleException(message);
+            case 20001, 20002, 20004 -> new ResourceNotFoundException(message);
+            case 20003, 20005, 20006, 20007, 20008, 20010, 20011, 20012, 20013, 20014, 20015, 20016, 20020 ->
+                    new BusinessRuleException(message);
             default -> ex;
         };
     }

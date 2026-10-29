@@ -59,7 +59,7 @@ class PlsqlClinicalRoutinesTest {
         int created = routines.generateAlerts(readingWithId(42L));
 
         assertThat(created).isEqualTo(3);
-        verify(jdbc).execute(eq("{call prc_registrar_alertas_leitura(?, ?)}"), any(CallableStatementCallback.class));
+        verify(jdbc).execute(eq("{call pkg_monitoramento.prc_registrar_alertas_leitura(?, ?)}"), any(CallableStatementCallback.class));
         verify(statement).setLong(1, 42L);
         verify(statement).registerOutParameter(2, Types.NUMERIC);
         verify(statement).execute();
@@ -72,7 +72,7 @@ class PlsqlClinicalRoutinesTest {
 
         routines.consolidateAll(30);
 
-        verify(jdbc).execute(eq("{call prc_consolidar_relatorio(?, ?, ?)}"), any(CallableStatementCallback.class));
+        verify(jdbc).execute(eq("{call pkg_relatorios.prc_consolidar_relatorio(?, ?, ?)}"), any(CallableStatementCallback.class));
         verify(statement).setNull(1, Types.NUMERIC);
         verify(statement).setInt(2, 30);
         verify(statement).registerOutParameter(3, Types.NUMERIC);
@@ -82,7 +82,7 @@ class PlsqlClinicalRoutinesTest {
     @DisplayName("ORA-20001 da procedure chega ao servico como recurso inexistente")
     void translatesProcedureErrors() {
         when(jdbc.execute(anyString(), any(CallableStatementCallback.class)))
-                .thenThrow(new UncategorizedSQLException("call", "{call prc_registrar_alertas_leitura(?, ?)}",
+                .thenThrow(new UncategorizedSQLException("call", "{call pkg_monitoramento.prc_registrar_alertas_leitura(?, ?)}",
                         new SQLException("ORA-20001: Leitura 42 nao encontrada.", "72000", 20001)));
 
         assertThatThrownBy(() -> routines.generateAlerts(readingWithId(42L)))

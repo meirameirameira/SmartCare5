@@ -1,0 +1,6 @@
+# Contexto do docker build: so o jar em build/libs e usado.
+.gradle/
+data/
+src/
+oracle.local.bat
+*.bat

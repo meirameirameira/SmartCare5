@@ -1,6 +1,6 @@
 -- =============================================================================
--- Smart HAS / SmartCare 5.0 - Fase 6
--- 04_carga_dados.sql - importacao de dados simulados
+-- Smart HAS / SmartCare 5.0 - Fase 7
+-- 08_carga_dados.sql - importacao de dados simulados
 --
 --   1. Faixas clinicas de referencia (parametros das functions)
 --   2. Pacientes, condicoes, usuarios, profissionais, consultas e pedidos
@@ -202,18 +202,18 @@ DECLARE
     END paciente;
 BEGIN
     -- Joao: taquicardia e glicemia alta (mesmo quadro da carga Java).
-    prc_registrar_leitura(paciente('Joao Silva'), 112, 93.4, 168, 138, 88, 37.4,
-                          SYSTIMESTAMP - NUMTODSINTERVAL(35, 'MINUTE'), v_leitura, v_alertas);
+    pkg_monitoramento.prc_registrar_leitura(paciente('Joao Silva'), 112, 93.4, 168, 138, 88, 37.4,
+                                            SYSTIMESTAMP - NUMTODSINTERVAL(35, 'MINUTE'), v_leitura, v_alertas);
     v_total := v_total + v_alertas;
 
     -- Maria: dessaturacao critica.
-    prc_registrar_leitura(paciente('Maria Oliveira'), 98, 88.5, 118, 128, 82, 36.9,
-                          SYSTIMESTAMP - NUMTODSINTERVAL(20, 'MINUTE'), v_leitura, v_alertas);
+    pkg_monitoramento.prc_registrar_leitura(paciente('Maria Oliveira'), 98, 88.5, 118, 128, 82, 36.9,
+                                            SYSTIMESTAMP - NUMTODSINTERVAL(20, 'MINUTE'), v_leitura, v_alertas);
     v_total := v_total + v_alertas;
 
     -- Carlos: crise hipertensiva.
-    prc_registrar_leitura(paciente('Carlos Pereira'), 94, 95.8, 121, 162, 99, 36.6,
-                          SYSTIMESTAMP - NUMTODSINTERVAL(15, 'MINUTE'), v_leitura, v_alertas);
+    pkg_monitoramento.prc_registrar_leitura(paciente('Carlos Pereira'), 94, 95.8, 121, 162, 99, 36.6,
+                                            SYSTIMESTAMP - NUMTODSINTERVAL(15, 'MINUTE'), v_leitura, v_alertas);
     v_total := v_total + v_alertas;
 
     -- Demais pacientes: avalia a leitura mais recente do historico.
@@ -223,7 +223,7 @@ BEGIN
           FROM vital_reading
          WHERE patient_id = p.id;
 
-        prc_registrar_alertas_leitura(v_leitura, v_alertas);
+        pkg_monitoramento.prc_registrar_alertas_leitura(v_leitura, v_alertas);
         v_total := v_total + v_alertas;
     END LOOP;
 
@@ -237,10 +237,10 @@ END;
 DECLARE
     v_processados NUMBER;
 BEGIN
-    prc_consolidar_relatorio(NULL, 7, v_processados);
+    pkg_relatorios.prc_consolidar_relatorio(NULL, 7, v_processados);
     DBMS_OUTPUT.PUT_LINE('Relatorio de 7 dias: ' || v_processados || ' pacientes.');
 
-    prc_consolidar_relatorio(NULL, 30, v_processados);
+    pkg_relatorios.prc_consolidar_relatorio(NULL, 30, v_processados);
     DBMS_OUTPUT.PUT_LINE('Relatorio de 30 dias: ' || v_processados || ' pacientes.');
 END;
 /

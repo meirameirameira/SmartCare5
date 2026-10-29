@@ -87,7 +87,7 @@ public class DemoDataLoader implements CommandLineRunner {
         users.save(patientUser);
 
         // Mesmo segundo paciente com acesso ao app da carga Oracle
-        // (database/oracle/04_carga_dados.sql).
+        // (database/oracle/08_carga_dados.sql).
         AppUser joaoUser = new AppUser("joao@smarthas.com", passwordEncoder.encode("paciente123"),
                 "Joao Silva", AppUser.Role.PATIENT);
         joaoUser.setPatient(joao);
